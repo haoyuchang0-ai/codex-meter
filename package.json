@@ -1,0 +1,19 @@
+{
+  "name": "codex-meter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A lightweight macOS floating window for Codex quota.",
+  "main": "server.js",
+  "scripts": {
+    "build:mac": "zsh scripts/build-floating-window.sh",
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haoyuchang0-ai/codex-meter.git"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

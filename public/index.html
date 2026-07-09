@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Codex 额度</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell" aria-live="polite">
+      <section class="window" aria-labelledby="title">
+        <header class="header">
+          <div>
+            <p class="eyebrow">Codex</p>
+            <h1 id="title">额度窗口</h1>
+          </div>
+          <div class="status-pill" id="statusPill">连接中</div>
+        </header>
+
+        <section class="meters" aria-label="额度剩余">
+          <article class="meter" id="primaryMeter">
+            <div class="meter-top">
+              <span class="meter-name">Primary</span>
+              <span class="meter-value" data-field="remaining">--%</span>
+            </div>
+            <div class="bar" aria-hidden="true">
+              <span data-field="bar"></span>
+            </div>
+            <div class="meter-meta">
+              <span data-field="used">已用 --%</span>
+              <span data-field="reset">重置 --</span>
+            </div>
+          </article>
+
+          <article class="meter" id="secondaryMeter">
+            <div class="meter-top">
+              <span class="meter-name">Secondary</span>
+              <span class="meter-value" data-field="remaining">--%</span>
+            </div>
+            <div class="bar" aria-hidden="true">
+              <span data-field="bar"></span>
+            </div>
+            <div class="meter-meta">
+              <span data-field="used">已用 --%</span>
+              <span data-field="reset">重置 --</span>
+            </div>
+          </article>
+        </section>
+
+        <section class="details" aria-label="状态">
+          <div>
+            <span class="detail-label">套餐</span>
+            <strong id="planType">--</strong>
+          </div>
+          <div>
+            <span class="detail-label">重置卡</span>
+            <strong id="resetCredits">--</strong>
+          </div>
+          <div>
+            <span class="detail-label">更新</span>
+            <strong id="lastUpdated">--</strong>
+          </div>
+        </section>
+
+        <p class="message" id="message" role="status"></p>
+
+        <footer class="controls">
+          <button class="button primary" id="refreshButton" type="button">
+            刷新
+          </button>
+          <label class="toggle">
+            <input id="autoRefresh" type="checkbox" checked />
+            <span>60 秒自动</span>
+          </label>
+          <span class="countdown" id="countdown">--</span>
+        </footer>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
