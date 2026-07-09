@@ -3,7 +3,7 @@ import Foundation
 
 private let refreshInterval: TimeInterval = 60
 private let quotaEndpoint = URL(string: "http://127.0.0.1:5487/api/rate-limits")!
-private let compactWindowSize = NSSize(width: 286, height: 160)
+private let compactWindowSize = NSSize(width: 312, height: 184)
 
 enum QuotaVisualStyle {
     case creamBlue
@@ -196,15 +196,15 @@ final class CircularGaugeView: NSView {
         }
 
         NSLayoutConstraint.activate([
-            heightAnchor.constraint(equalToConstant: 86),
+            heightAnchor.constraint(equalToConstant: 110),
 
-            captionLabel.topAnchor.constraint(equalTo: topAnchor, constant: 8),
+            captionLabel.topAnchor.constraint(equalTo: topAnchor, constant: 12),
             captionLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
 
             valueLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-            valueLabel.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 0),
+            valueLabel.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 5),
 
-            resetLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
+            resetLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
             resetLabel.centerXAnchor.constraint(equalTo: centerXAnchor)
         ])
     }
@@ -216,8 +216,8 @@ final class CircularGaugeView: NSView {
     override var isFlipped: Bool { true }
 
     override func draw(_ dirtyRect: NSRect) {
-        let center = NSPoint(x: bounds.midX, y: bounds.midY + 5)
-        let radius = min(bounds.width * 0.29, 27)
+        let center = NSPoint(x: bounds.midX, y: bounds.midY + 7)
+        let radius = min(bounds.width * 0.30, 31)
         drawTicks(center: center, radius: radius)
         drawArc(center: center, radius: radius, percent: 1, color: trackColor, width: 6)
         drawArc(center: center, radius: radius, percent: fraction, color: fillColor, width: 6)
@@ -346,12 +346,12 @@ final class QuotaViewController: NSViewController {
         autoButton.controlSize = .mini
         autoButton.font = .systemFont(ofSize: 10, weight: .medium)
         autoButton.toolTip = "每 60 秒自动更新"
-        autoButton.alphaValue = 0.72
+        autoButton.alphaValue = 0.64
         autoButton.translatesAutoresizingMaskIntoConstraints = false
 
         let header = NSView()
         header.translatesAutoresizingMaskIntoConstraints = false
-        for child in [titleLabel, gaugeButton, colorButton, refreshButton] {
+        for child in [autoButton, titleLabel, gaugeButton, colorButton, refreshButton] {
             child.translatesAutoresizingMaskIntoConstraints = false
             header.addSubview(child)
         }
@@ -367,22 +367,18 @@ final class QuotaViewController: NSViewController {
         gaugeStack.orientation = .horizontal
         gaugeStack.alignment = .centerY
         gaugeStack.distribution = .fillEqually
-        gaugeStack.spacing = 10
+        gaugeStack.spacing = 12
         gaugeStack.translatesAutoresizingMaskIntoConstraints = false
 
         contentStage.translatesAutoresizingMaskIntoConstraints = false
         contentStage.addSubview(rowStack)
         contentStage.addSubview(gaugeStack)
 
-        let footer = NSView()
-        footer.translatesAutoresizingMaskIntoConstraints = false
-        footer.addSubview(autoButton)
-
-        let stack = NSStackView(views: [header, contentStage, footer])
+        let stack = NSStackView(views: [header, contentStage])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.distribution = .gravityAreas
-        stack.spacing = 6
+        stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         for subview in stack.views {
@@ -392,9 +388,10 @@ final class QuotaViewController: NSViewController {
 
         view.addSubview(stack)
         NSLayoutConstraint.activate([
-            header.heightAnchor.constraint(equalToConstant: 22),
-            contentStage.heightAnchor.constraint(equalToConstant: 92),
-            footer.heightAnchor.constraint(equalToConstant: 16),
+            header.heightAnchor.constraint(equalToConstant: 24),
+            contentStage.heightAnchor.constraint(equalToConstant: 116),
+            autoButton.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            autoButton.centerYAnchor.constraint(equalTo: header.centerYAnchor),
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: header.centerYAnchor),
 
@@ -413,23 +410,20 @@ final class QuotaViewController: NSViewController {
             refreshButton.widthAnchor.constraint(equalToConstant: 24),
             refreshButton.heightAnchor.constraint(equalToConstant: 22),
 
-            rowStack.topAnchor.constraint(equalTo: contentStage.topAnchor),
             rowStack.leadingAnchor.constraint(equalTo: contentStage.leadingAnchor),
             rowStack.trailingAnchor.constraint(equalTo: contentStage.trailingAnchor),
-            rowStack.bottomAnchor.constraint(equalTo: contentStage.bottomAnchor),
+            rowStack.centerYAnchor.constraint(equalTo: contentStage.centerYAnchor),
+            rowStack.heightAnchor.constraint(equalToConstant: 92),
 
             gaugeStack.leadingAnchor.constraint(equalTo: contentStage.leadingAnchor),
             gaugeStack.trailingAnchor.constraint(equalTo: contentStage.trailingAnchor),
-            gaugeStack.centerYAnchor.constraint(equalTo: contentStage.centerYAnchor, constant: 3),
-            gaugeStack.heightAnchor.constraint(equalToConstant: 86),
+            gaugeStack.centerYAnchor.constraint(equalTo: contentStage.centerYAnchor),
+            gaugeStack.heightAnchor.constraint(equalToConstant: 110),
 
-            autoButton.centerXAnchor.constraint(equalTo: footer.centerXAnchor),
-            autoButton.centerYAnchor.constraint(equalTo: footer.centerYAnchor),
-
-            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 10),
+            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 12),
             stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -8)
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -12)
         ])
 
         applyVisualStyle()
@@ -579,6 +573,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.title = ""
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
+        for buttonType in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            panel.standardWindowButton(buttonType)?.isHidden = true
+        }
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true

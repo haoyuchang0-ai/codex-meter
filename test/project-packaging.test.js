@@ -45,3 +45,12 @@ test("launcher is portable and builds the native app when missing", () => {
   assert.match(launcher, /scripts\/build-floating-window\.sh/);
   assert.match(launcher, /CodexQuotaFloat\.app/);
 });
+
+test("launcher only requires Node when it needs to start the local service", () => {
+  const launcher = read("launch-floating-window.command");
+
+  assert.ok(
+    launcher.indexOf('/usr/bin/curl -fsS "$HEALTH_URL"') <
+      launcher.indexOf('command -v node'),
+  );
+});

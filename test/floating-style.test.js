@@ -59,18 +59,18 @@ test("native floating window keeps both display modes in the same visual stage",
   const source = readMainSwift();
 
   assert.match(source, /private\s+let\s+contentStage\s*=\s*NSView\(\)/);
-  assert.match(source, /contentStage\.heightAnchor\.constraint\(equalToConstant:\s*92\)/);
+  assert.match(source, /contentStage\.heightAnchor\.constraint\(equalToConstant:\s*116\)/);
   assert.match(source, /contentStage\.addSubview\(rowStack\)/);
   assert.match(source, /contentStage\.addSubview\(gaugeStack\)/);
-  assert.match(source, /let\s+stack\s*=\s*NSStackView\(views:\s*\[header,\s*contentStage,\s*footer\]\)/);
+  assert.match(source, /let\s+stack\s*=\s*NSStackView\(views:\s*\[header,\s*contentStage\]\)/);
 });
 
 test("native floating window trims excess bottom whitespace", () => {
   const source = readMainSwift();
 
-  assert.match(source, /compactWindowSize\s*=\s*NSSize\(width:\s*286,\s*height:\s*160\)/);
-  assert.match(source, /stack\.spacing\s*=\s*6/);
-  assert.match(source, /stack\.bottomAnchor\.constraint\(lessThanOrEqualTo:\s*view\.bottomAnchor,\s*constant:\s*-8\)/);
+  assert.match(source, /compactWindowSize\s*=\s*NSSize\(width:\s*312,\s*height:\s*184\)/);
+  assert.match(source, /stack\.spacing\s*=\s*8/);
+  assert.match(source, /stack\.bottomAnchor\.constraint\(lessThanOrEqualTo:\s*view\.bottomAnchor,\s*constant:\s*-12\)/);
 });
 
 test("native floating window crossfades display mode changes without relayout", () => {
@@ -85,10 +85,11 @@ test("native floating window crossfades display mode changes without relayout", 
 test("native circular dashboard has more vertical breathing room", () => {
   const source = readMainSwift();
 
-  assert.match(source, /let\s+center\s*=\s*NSPoint\(x:\s*bounds\.midX,\s*y:\s*bounds\.midY\s*\+\s*5\)/);
-  assert.match(source, /let\s+radius\s*=\s*min\(bounds\.width\s*\*\s*0\.29,\s*27\)/);
-  assert.match(source, /valueLabel\.centerYAnchor\.constraint\(equalTo:\s*centerYAnchor,\s*constant:\s*0\)/);
-  assert.match(source, /gaugeStack\.centerYAnchor\.constraint\(equalTo:\s*contentStage\.centerYAnchor,\s*constant:\s*3\)/);
+  assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*110\)/);
+  assert.match(source, /captionLabel\.topAnchor\.constraint\(equalTo:\s*topAnchor,\s*constant:\s*12\)/);
+  assert.match(source, /valueLabel\.centerYAnchor\.constraint\(equalTo:\s*centerYAnchor,\s*constant:\s*5\)/);
+  assert.match(source, /resetLabel\.bottomAnchor\.constraint\(equalTo:\s*bottomAnchor,\s*constant:\s*-12\)/);
+  assert.match(source, /let\s+radius\s*=\s*min\(bounds\.width\s*\*\s*0\.30,\s*31\)/);
 });
 
 test("native circular dashboard matches the refined card treatment", () => {
@@ -102,7 +103,16 @@ test("native circular dashboard matches the refined card treatment", () => {
 test("native floating window keeps secondary controls visually quiet", () => {
   const source = readMainSwift();
 
-  assert.match(source, /gaugeStack\.spacing\s*=\s*10/);
+  assert.match(source, /gaugeStack\.spacing\s*=\s*12/);
   assert.match(source, /button\.alphaValue\s*=\s*0\.72/);
-  assert.match(source, /autoButton\.alphaValue\s*=\s*0\.72/);
+  assert.match(source, /autoButton\.alphaValue\s*=\s*0\.64/);
+  assert.match(source, /for\s+child\s+in\s+\[autoButton,\s*titleLabel,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
+  assert.match(source, /autoButton\.leadingAnchor\.constraint\(equalTo:\s*header\.leadingAnchor\)/);
+});
+
+test("native floating window hides default macOS traffic-light controls", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /NSWindow\.ButtonType\.closeButton/);
+  assert.match(source, /standardWindowButton\(buttonType\)\?\.isHidden\s*=\s*true/);
 });
