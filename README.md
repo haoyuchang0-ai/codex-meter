@@ -11,7 +11,20 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 - 显示每个额度窗口的重置时间。
 - 默认每 60 秒自动刷新，也支持手动刷新。
 - 支持条形视图、圆形仪表盘视图和两套颜色风格。
+- 支持胶囊模式和菜单栏隐藏，隐藏后可从 macOS 菜单栏恢复。
 - 保留本地网页调试入口。
+
+## 使用方式
+
+- 点击窗口右上角的收起按钮进入胶囊模式；点击胶囊可恢复完整窗口。
+- 在 macOS 菜单栏的 Codex Meter 图标中，可以显示窗口、收起为胶囊、隐藏到菜单栏、手动刷新、切换风格或退出。
+- 关闭窗口不会退出应用，而是隐藏到菜单栏，避免隐藏后找不到。
+
+## Usage
+
+- Click the shrink button in the floating window to enter Capsule mode; click the capsule to restore the full window.
+- Use the macOS menu bar icon to show the window, collapse to capsule, hide to the menu bar, refresh manually, switch styles, or quit.
+- Closing the window hides it to the menu bar instead of quitting, so the app remains easy to recover.
 
 ## Quick Start
 

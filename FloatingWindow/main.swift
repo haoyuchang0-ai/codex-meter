@@ -3,7 +3,8 @@ import Foundation
 
 private let refreshInterval: TimeInterval = 60
 private let quotaEndpoint = URL(string: "http://127.0.0.1:5487/api/rate-limits")!
-private let compactWindowSize = NSSize(width: 312, height: 184)
+private let expandedWindowSize = NSSize(width: 312, height: 184)
+private let capsuleWindowSize = NSSize(width: 156, height: 44)
 
 enum QuotaVisualStyle {
     case creamBlue
@@ -187,7 +188,7 @@ final class CircularGaugeView: NSView {
         valueLabel.font = .monospacedDigitSystemFont(ofSize: 22, weight: .semibold)
         valueLabel.alignment = .center
 
-        resetLabel.font = .monospacedDigitSystemFont(ofSize: 9, weight: .medium)
+        resetLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .semibold)
         resetLabel.alignment = .center
 
         for child in [captionLabel, valueLabel, resetLabel] {
@@ -202,9 +203,9 @@ final class CircularGaugeView: NSView {
             captionLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
 
             valueLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-            valueLabel.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 5),
+            valueLabel.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 2),
 
-            resetLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+            resetLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
             resetLabel.centerXAnchor.constraint(equalTo: centerXAnchor)
         ])
     }
@@ -218,7 +219,6 @@ final class CircularGaugeView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         let center = NSPoint(x: bounds.midX, y: bounds.midY + 7)
         let radius = min(bounds.width * 0.30, 31)
-        drawTicks(center: center, radius: radius)
         drawArc(center: center, radius: radius, percent: 1, color: trackColor, width: 6)
         drawArc(center: center, radius: radius, percent: fraction, color: fillColor, width: 6)
     }
@@ -274,20 +274,6 @@ final class CircularGaugeView: NSView {
         path.stroke()
     }
 
-    private func drawTicks(center: NSPoint, radius: CGFloat) {
-        NSColor(calibratedWhite: 0.55, alpha: 0.45).setStroke()
-        for index in 0...6 {
-            let angle = (205 + CGFloat(index) * (130 / 6)) * .pi / 180
-            let outer = NSPoint(x: center.x + cos(angle) * (radius + 8), y: center.y - sin(angle) * (radius + 8))
-            let inner = NSPoint(x: center.x + cos(angle) * (radius + 3), y: center.y - sin(angle) * (radius + 3))
-            let tick = NSBezierPath()
-            tick.move(to: inner)
-            tick.line(to: outer)
-            tick.lineWidth = index == 0 || index == 6 ? 1.4 : 1
-            tick.stroke()
-        }
-    }
-
     private func formatReset(_ epochSeconds: Int?) -> String {
         guard let epochSeconds else {
             return "--"
@@ -299,12 +285,79 @@ final class CircularGaugeView: NSView {
     }
 }
 
+final class CapsuleViewController: NSViewController {
+    private let primaryCapsuleLabel = NSTextField(labelWithString: "主 --%")
+    private let secondaryCapsuleLabel = NSTextField(labelWithString: "周 --%")
+    var onOpenRequested: (() -> Void)?
+
+    override func loadView() {
+        view = NSView(frame: NSRect(origin: .zero, size: capsuleWindowSize))
+        view.wantsLayer = true
+        view.layer?.cornerRadius = 20
+        view.layer?.cornerCurve = .continuous
+        view.layer?.backgroundColor = NSColor(calibratedRed: 0.96, green: 0.98, blue: 1.0, alpha: 0.94).cgColor
+        view.setAccessibilityLabel("Codex 额度胶囊窗口")
+        view.toolTip = "点击展开 Codex Meter"
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        for label in [primaryCapsuleLabel, secondaryCapsuleLabel] {
+            label.font = .monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
+            label.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
+            label.alignment = .center
+        }
+
+        let separator = NSTextField(labelWithString: "·")
+        separator.font = .systemFont(ofSize: 13, weight: .medium)
+        separator.textColor = NSColor(calibratedRed: 0.36, green: 0.50, blue: 0.62, alpha: 0.72)
+        separator.alignment = .center
+
+        let stack = NSStackView(views: [primaryCapsuleLabel, separator, secondaryCapsuleLabel])
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.distribution = .gravityAreas
+        stack.spacing = 6
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        view.addSubview(stack)
+        view.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(capsuleClicked)))
+
+        NSLayoutConstraint.activate([
+            primaryCapsuleLabel.widthAnchor.constraint(equalToConstant: 58),
+            separator.widthAnchor.constraint(equalToConstant: 8),
+            secondaryCapsuleLabel.widthAnchor.constraint(equalToConstant: 58),
+            stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
+
+    func update(primary: QuotaWindow?, secondary: QuotaWindow?) {
+        primaryCapsuleLabel.stringValue = "主 \(formatPercent(primary))"
+        secondaryCapsuleLabel.stringValue = "周 \(formatPercent(secondary))"
+    }
+
+    private func formatPercent(_ window: QuotaWindow?) -> String {
+        guard let window, window.status == "ok", let remaining = window.remainingPercent else {
+            return "--%"
+        }
+
+        return "\(remaining)%"
+    }
+
+    @objc private func capsuleClicked() {
+        onOpenRequested?()
+    }
+}
+
 final class QuotaViewController: NSViewController {
     private let titleLabel = NSTextField(labelWithString: "Codex")
     private let primaryMeter = CompactMeterRow(name: "主额度", accessibilityLabel: "主额度")
     private let secondaryMeter = CompactMeterRow(name: "周额度", accessibilityLabel: "周额度")
     private let primaryGauge = CircularGaugeView(caption: "主额度", accessibilityLabel: "主额度圆形仪表盘")
     private let secondaryGauge = CircularGaugeView(caption: "周额度", accessibilityLabel: "周额度圆形仪表盘")
+    private let shrinkButton = NSButton()
     private let gaugeButton = NSButton()
     private let colorButton = NSButton()
     private let refreshButton = NSButton()
@@ -315,9 +368,12 @@ final class QuotaViewController: NSViewController {
     private var visualStyle: QuotaVisualStyle = .creamBlue
     private var displayMode: QuotaDisplayMode = .circularDashboard
     private var refreshTimer: Timer?
+    var onCapsuleRequested: (() -> Void)?
+    var onQuotaWindowsChanged: ((QuotaWindow?, QuotaWindow?) -> Void)?
+    var onStatusTextChanged: ((String) -> Void)?
 
     override func loadView() {
-        view = NSView(frame: NSRect(origin: .zero, size: compactWindowSize))
+        view = NSView(frame: NSRect(origin: .zero, size: expandedWindowSize))
         view.wantsLayer = true
         view.layer?.cornerRadius = 22
         view.layer?.cornerCurve = .continuous
@@ -338,6 +394,7 @@ final class QuotaViewController: NSViewController {
         titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         titleLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
 
+        configureIconButton(shrinkButton, symbolName: "rectangle.compress.vertical", toolTip: "收起为胶囊", action: #selector(shrinkButtonPressed))
         configureIconButton(gaugeButton, symbolName: "gauge.medium", toolTip: "切换条形/圆形仪表盘", action: #selector(gaugeButtonPressed))
         configureIconButton(colorButton, symbolName: "paintpalette", toolTip: "切换颜色风格", action: #selector(colorButtonPressed))
         configureIconButton(refreshButton, symbolName: "arrow.clockwise", toolTip: "刷新", action: #selector(refreshButtonPressed))
@@ -351,7 +408,7 @@ final class QuotaViewController: NSViewController {
 
         let header = NSView()
         header.translatesAutoresizingMaskIntoConstraints = false
-        for child in [autoButton, titleLabel, gaugeButton, colorButton, refreshButton] {
+        for child in [autoButton, titleLabel, shrinkButton, gaugeButton, colorButton, refreshButton] {
             child.translatesAutoresizingMaskIntoConstraints = false
             header.addSubview(child)
         }
@@ -394,6 +451,11 @@ final class QuotaViewController: NSViewController {
             autoButton.centerYAnchor.constraint(equalTo: header.centerYAnchor),
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+
+            shrinkButton.trailingAnchor.constraint(equalTo: gaugeButton.leadingAnchor, constant: -2),
+            shrinkButton.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            shrinkButton.widthAnchor.constraint(equalToConstant: 22),
+            shrinkButton.heightAnchor.constraint(equalToConstant: 22),
 
             gaugeButton.trailingAnchor.constraint(equalTo: colorButton.leadingAnchor, constant: -2),
             gaugeButton.centerYAnchor.constraint(equalTo: header.centerYAnchor),
@@ -445,6 +507,10 @@ final class QuotaViewController: NSViewController {
         refreshNow()
     }
 
+    @objc private func shrinkButtonPressed() {
+        onCapsuleRequested?()
+    }
+
     @objc private func gaugeButtonPressed() {
         displayMode.toggle()
         applyDisplayMode(animated: true)
@@ -455,7 +521,7 @@ final class QuotaViewController: NSViewController {
         applyVisualStyle()
     }
 
-    private func refreshNow() {
+    func refreshNow() {
         refreshButton.isEnabled = false
 
         URLSession.shared.dataTask(with: quotaEndpoint) { [weak self] data, _, error in
@@ -489,7 +555,36 @@ final class QuotaViewController: NSViewController {
         secondaryMeter.update(with: windows["secondary"])
         primaryGauge.update(with: windows["primary"])
         secondaryGauge.update(with: windows["secondary"])
+        onQuotaWindowsChanged?(windows["primary"], windows["secondary"])
+        onStatusTextChanged?(statusText(primary: windows["primary"], secondary: windows["secondary"]))
         titleLabel.stringValue = "Codex"
+    }
+
+    func toggleAutoRefresh() -> Bool {
+        autoButton.state = autoButton.state == .on ? .off : .on
+        return autoButton.state == .on
+    }
+
+    func toggleVisualStyleFromMenu() {
+        visualStyle.toggle()
+        applyVisualStyle()
+    }
+
+    func toggleDisplayModeFromMenu() {
+        displayMode.toggle()
+        applyDisplayMode(animated: true)
+    }
+
+    private func statusText(primary: QuotaWindow?, secondary: QuotaWindow?) -> String {
+        "\(statusPercent(primary))/\(statusPercent(secondary))"
+    }
+
+    private func statusPercent(_ window: QuotaWindow?) -> String {
+        guard let window, window.status == "ok", let remaining = window.remainingPercent else {
+            return "--"
+        }
+
+        return "\(remaining)"
     }
 
     private func applyVisualStyle() {
@@ -503,7 +598,7 @@ final class QuotaViewController: NSViewController {
             view.layer?.backgroundColor = NSColor(calibratedRed: 0.96, green: 0.98, blue: 1.0, alpha: 0.92).cgColor
             titleLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
             autoButton.contentTintColor = NSColor(calibratedRed: 0.18, green: 0.44, blue: 0.62, alpha: 1)
-            for button in [gaugeButton, colorButton, refreshButton] {
+            for button in [shrinkButton, gaugeButton, colorButton, refreshButton] {
                 button.contentTintColor = NSColor(calibratedRed: 0.18, green: 0.44, blue: 0.62, alpha: 1)
             }
             colorButton.toolTip = "切换到简约灰白配色"
@@ -511,7 +606,7 @@ final class QuotaViewController: NSViewController {
             view.layer?.backgroundColor = NSColor(calibratedWhite: 0.96, alpha: 0.94).cgColor
             titleLabel.textColor = NSColor(calibratedWhite: 0.08, alpha: 1)
             autoButton.contentTintColor = NSColor(calibratedWhite: 0.18, alpha: 1)
-            for button in [gaugeButton, colorButton, refreshButton] {
+            for button in [shrinkButton, gaugeButton, colorButton, refreshButton] {
                 button.contentTintColor = NSColor(calibratedWhite: 0.18, alpha: 1)
             }
             colorButton.toolTip = "切换到奶油蓝配色"
@@ -560,11 +655,58 @@ final class QuotaViewController: NSViewController {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var panel: NSPanel?
+    private var capsulePanel: NSPanel?
+    private var controller: QuotaViewController?
+    private var capsuleController: CapsuleViewController?
+    private var statusItem: NSStatusItem?
+    private var autoRefreshMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let controller = QuotaViewController()
+        let capsuleController = CapsuleViewController()
+        let panel = makePanel(
+            size: expandedWindowSize,
+            controller: controller
+        )
+        let capsulePanel = makePanel(
+            size: capsuleWindowSize,
+            controller: capsuleController
+        )
+
+        controller.onCapsuleRequested = { [weak self] in
+            self?.showCapsule(nil)
+        }
+        controller.onQuotaWindowsChanged = { [weak self] primary, secondary in
+            self?.capsuleController?.update(primary: primary, secondary: secondary)
+        }
+        controller.onStatusTextChanged = { [weak self] text in
+            self?.updateStatusItemTitle(text)
+        }
+        capsuleController.onOpenRequested = { [weak self] in
+            self?.showExpanded(nil)
+        }
+
+        placePanel(panel)
+        placePanel(capsulePanel)
+        capsulePanel.orderOut(nil)
+        panel.orderFrontRegardless()
+
+        self.panel = panel
+        self.capsulePanel = capsulePanel
+        self.controller = controller
+        self.capsuleController = capsuleController
+
+        configureStatusItem()
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        hideToMenuBar(sender)
+        return false
+    }
+
+    private func makePanel(size: NSSize, controller: NSViewController) -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(origin: .zero, size: compactWindowSize),
+            contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -586,14 +728,90 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.contentViewController = controller
         panel.delegate = self
-        placePanel(panel)
-        panel.orderFrontRegardless()
 
-        self.panel = panel
+        return panel
     }
 
-    func windowWillClose(_ notification: Notification) {
+    private func configureStatusItem() {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem.button?.image = NSImage(systemSymbolName: "gauge.medium", accessibilityDescription: "Codex 额度")
+        statusItem.button?.title = " --/--"
+        statusItem.button?.imagePosition = .imageLeading
+
+        let menu = NSMenu()
+        menu.addItem(menuItem("显示窗口", action: #selector(showExpanded(_:))))
+        menu.addItem(menuItem("收起为胶囊", action: #selector(showCapsule(_:))))
+        menu.addItem(menuItem("隐藏到菜单栏", action: #selector(hideToMenuBar(_:))))
+        menu.addItem(.separator())
+        menu.addItem(menuItem("手动刷新", action: #selector(refreshFromMenu(_:))))
+
+        let autoItem = menuItem("自动更新", action: #selector(toggleAutoRefreshFromMenu(_:)))
+        autoItem.state = .on
+        menu.addItem(autoItem)
+        autoRefreshMenuItem = autoItem
+
+        menu.addItem(menuItem("切换颜色风格", action: #selector(toggleVisualStyleFromMenu(_:))))
+        menu.addItem(menuItem("切换显示模式", action: #selector(toggleDisplayModeFromMenu(_:))))
+        menu.addItem(.separator())
+        menu.addItem(menuItem("退出", action: #selector(quitApp(_:))))
+
+        statusItem.menu = menu
+        self.statusItem = statusItem
+    }
+
+    private func menuItem(_ title: String, action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
+    }
+
+    @objc private func showExpanded(_ sender: Any?) {
+        guard let panel else { return }
+
+        if let capsulePanel, capsulePanel.isVisible {
+            alignPanel(panel, toUpperRightOf: capsulePanel, size: expandedWindowSize)
+        }
+
+        capsulePanel?.orderOut(nil)
+        panel.orderFrontRegardless()
+    }
+
+    @objc private func showCapsule(_ sender: Any?) {
+        guard let panel, let capsulePanel else { return }
+
+        alignPanel(capsulePanel, toUpperRightOf: panel, size: capsuleWindowSize)
+        panel.orderOut(nil)
+        capsulePanel.orderFrontRegardless()
+    }
+
+    @objc private func hideToMenuBar(_ sender: Any?) {
+        panel?.orderOut(nil)
+        capsulePanel?.orderOut(nil)
+    }
+
+    @objc private func refreshFromMenu(_ sender: Any?) {
+        controller?.refreshNow()
+    }
+
+    @objc private func toggleAutoRefreshFromMenu(_ sender: Any?) {
+        let isEnabled = controller?.toggleAutoRefresh() ?? false
+        autoRefreshMenuItem?.state = isEnabled ? .on : .off
+    }
+
+    @objc private func toggleVisualStyleFromMenu(_ sender: Any?) {
+        controller?.toggleVisualStyleFromMenu()
+    }
+
+    @objc private func toggleDisplayModeFromMenu(_ sender: Any?) {
+        controller?.toggleDisplayModeFromMenu()
+    }
+
+    @objc private func quitApp(_ sender: Any?) {
         NSApp.terminate(nil)
+    }
+
+    private func updateStatusItemTitle(_ text: String) {
+        statusItem?.button?.title = " \(text)"
     }
 
     private func placePanel(_ panel: NSPanel) {
@@ -609,6 +827,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             y: frame.maxY - size.height - 24
         )
         panel.setFrameOrigin(origin)
+    }
+
+    private func alignPanel(_ panel: NSPanel, toUpperRightOf source: NSWindow, size: NSSize) {
+        let sourceFrame = source.frame
+        let origin = NSPoint(
+            x: sourceFrame.maxX - size.width,
+            y: sourceFrame.maxY - size.height
+        )
+        panel.setFrame(NSRect(origin: origin, size: size), display: true, animate: true)
     }
 }
 

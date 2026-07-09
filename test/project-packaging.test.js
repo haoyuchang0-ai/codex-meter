@@ -16,6 +16,10 @@ test("project README documents GitHub-ready usage in Chinese and English", () =>
   assert.match(readme, /## 功能/);
   assert.match(readme, /## Quick Start/);
   assert.match(readme, /## Build the macOS App/);
+  assert.match(readme, /胶囊模式/);
+  assert.match(readme, /菜单栏/);
+  assert.match(readme, /Capsule mode/);
+  assert.match(readme, /menu bar/);
   assert.match(readme, /不会主动创建 Codex 对话/);
   assert.match(readme, /does not create Codex conversations/);
 });

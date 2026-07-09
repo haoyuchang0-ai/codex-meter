@@ -68,7 +68,7 @@ test("native floating window keeps both display modes in the same visual stage",
 test("native floating window trims excess bottom whitespace", () => {
   const source = readMainSwift();
 
-  assert.match(source, /compactWindowSize\s*=\s*NSSize\(width:\s*312,\s*height:\s*184\)/);
+  assert.match(source, /expandedWindowSize\s*=\s*NSSize\(width:\s*312,\s*height:\s*184\)/);
   assert.match(source, /stack\.spacing\s*=\s*8/);
   assert.match(source, /stack\.bottomAnchor\.constraint\(lessThanOrEqualTo:\s*view\.bottomAnchor,\s*constant:\s*-12\)/);
 });
@@ -87,8 +87,9 @@ test("native circular dashboard has more vertical breathing room", () => {
 
   assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*110\)/);
   assert.match(source, /captionLabel\.topAnchor\.constraint\(equalTo:\s*topAnchor,\s*constant:\s*12\)/);
-  assert.match(source, /valueLabel\.centerYAnchor\.constraint\(equalTo:\s*centerYAnchor,\s*constant:\s*5\)/);
-  assert.match(source, /resetLabel\.bottomAnchor\.constraint\(equalTo:\s*bottomAnchor,\s*constant:\s*-12\)/);
+  assert.match(source, /valueLabel\.centerYAnchor\.constraint\(equalTo:\s*centerYAnchor,\s*constant:\s*2\)/);
+  assert.match(source, /resetLabel\.font\s*=\s*\.monospacedDigitSystemFont\(ofSize:\s*10,\s*weight:\s*\.semibold\)/);
+  assert.match(source, /resetLabel\.bottomAnchor\.constraint\(equalTo:\s*bottomAnchor,\s*constant:\s*-14\)/);
   assert.match(source, /let\s+radius\s*=\s*min\(bounds\.width\s*\*\s*0\.30,\s*31\)/);
 });
 
@@ -100,13 +101,20 @@ test("native circular dashboard matches the refined card treatment", () => {
   assert.match(source, /case\s+\.minimalistDashboard:[\s\S]*layer\?\.borderColor\s*=\s*NSColor\(calibratedRed:\s*0\.82,\s*green:\s*0\.84,\s*blue:\s*0\.87,\s*alpha:\s*0\.72\)\.cgColor/);
 });
 
+test("native circular dashboard removes decorative tick marks that crowd reset time", () => {
+  const source = readMainSwift();
+
+  assert.doesNotMatch(source, /drawTicks/);
+  assert.doesNotMatch(source, /for\s+index\s+in\s+0\.\.\.6/);
+});
+
 test("native floating window keeps secondary controls visually quiet", () => {
   const source = readMainSwift();
 
   assert.match(source, /gaugeStack\.spacing\s*=\s*12/);
   assert.match(source, /button\.alphaValue\s*=\s*0\.72/);
   assert.match(source, /autoButton\.alphaValue\s*=\s*0\.64/);
-  assert.match(source, /for\s+child\s+in\s+\[autoButton,\s*titleLabel,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
+  assert.match(source, /for\s+child\s+in\s+\[autoButton,\s*titleLabel,\s*shrinkButton,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
   assert.match(source, /autoButton\.leadingAnchor\.constraint\(equalTo:\s*header\.leadingAnchor\)/);
 });
 
@@ -115,4 +123,34 @@ test("native floating window hides default macOS traffic-light controls", () => 
 
   assert.match(source, /NSWindow\.ButtonType\.closeButton/);
   assert.match(source, /standardWindowButton\(buttonType\)\?\.isHidden\s*=\s*true/);
+});
+
+test("native floating window supports a small capsule mode", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /capsuleWindowSize\s*=\s*NSSize\(width:\s*156,\s*height:\s*44\)/);
+  assert.match(source, /final\s+class\s+CapsuleViewController/);
+  assert.match(source, /primaryCapsuleLabel/);
+  assert.match(source, /secondaryCapsuleLabel/);
+  assert.match(source, /NSClickGestureRecognizer/);
+  assert.match(source, /showCapsule/);
+});
+
+test("native floating window can hide safely into the macOS menu bar", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /NSStatusBar\.system\.statusItem\(withLength:\s*NSStatusItem\.variableLength\)/);
+  assert.match(source, /显示窗口/);
+  assert.match(source, /收起为胶囊/);
+  assert.match(source, /隐藏到菜单栏/);
+  assert.match(source, /手动刷新/);
+  assert.match(source, /退出/);
+});
+
+test("closing the floating window hides it instead of making it hard to recover", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /func\s+windowShouldClose\(_\s+sender:\s*NSWindow\)\s*->\s*Bool\s*\{[\s\S]*hideToMenuBar/);
+  assert.match(source, /return\s+false/);
+  assert.doesNotMatch(source, /func\s+windowWillClose[\s\S]*NSApp\.terminate/);
 });
