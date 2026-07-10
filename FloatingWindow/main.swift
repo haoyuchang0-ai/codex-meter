@@ -81,6 +81,7 @@ enum ActivityStatus {
 
 final class SignalLampView: NSView {
     private let semanticColor: NSColor
+    private let highlightLayer = CALayer()
 
     init(color: NSColor) {
         semanticColor = color
@@ -88,8 +89,16 @@ final class SignalLampView: NSView {
         wantsLayer = true
         layer?.cornerRadius = 4
         layer?.cornerCurve = .continuous
-        layer?.shadowRadius = 4
+        layer?.masksToBounds = false
+        layer?.shadowRadius = 6
         layer?.shadowOffset = .zero
+        highlightLayer.backgroundColor = NSColor.white.cgColor
+        highlightLayer.cornerRadius = 1
+        highlightLayer.shadowColor = NSColor.white.cgColor
+        highlightLayer.shadowOpacity = 0.8
+        highlightLayer.shadowRadius = 1.5
+        highlightLayer.shadowOffset = .zero
+        layer?.addSublayer(highlightLayer)
         translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: 8),
@@ -102,12 +111,21 @@ final class SignalLampView: NSView {
         nil
     }
 
+    override func layout() {
+        super.layout()
+        layer?.shadowPath = CGPath(ellipseIn: bounds, transform: nil)
+        highlightLayer.frame = CGRect(x: 1.4, y: 4.6, width: 2, height: 2)
+    }
+
     func setActive(_ active: Bool) {
-        layer?.backgroundColor = semanticColor.withAlphaComponent(active ? 1 : 0.30).cgColor
+        layer?.backgroundColor = semanticColor.withAlphaComponent(active ? 1 : 0.12).cgColor
         layer?.borderWidth = 0.5
-        layer?.borderColor = semanticColor.withAlphaComponent(active ? 0.72 : 0.34).cgColor
+        layer?.borderColor = (active
+            ? NSColor.white.withAlphaComponent(0.90)
+            : semanticColor.withAlphaComponent(0.38)).cgColor
         layer?.shadowColor = semanticColor.cgColor
-        layer?.shadowOpacity = active ? 0.42 : 0
+        layer?.shadowOpacity = active ? 0.86 : 0
+        highlightLayer.opacity = active ? 0.95 : 0
     }
 }
 
@@ -122,6 +140,7 @@ final class ActivitySignalView: NSView {
         wantsLayer = true
         layer?.cornerRadius = 11
         layer?.cornerCurve = .continuous
+        layer?.masksToBounds = false
         layer?.backgroundColor = NSColor.white.withAlphaComponent(0.44).cgColor
 
         textLabel.font = .systemFont(ofSize: 10, weight: .semibold)
