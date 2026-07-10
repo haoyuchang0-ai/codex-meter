@@ -133,9 +133,9 @@ test("native floating window keeps secondary controls visually quiet", () => {
 
   assert.match(source, /gaugeStack\.spacing\s*=\s*12/);
   assert.match(source, /button\.alphaValue\s*=\s*0\.72/);
-  assert.match(source, /private\s+let\s+activityPill\s*=\s*ActivityPillView\(\)/);
-  assert.match(source, /for\s+child\s+in\s+\[activityPill,\s*titleLabel,\s*shrinkButton,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
-  assert.match(source, /activityPill\.leadingAnchor\.constraint\(equalTo:\s*header\.leadingAnchor\)/);
+  assert.match(source, /private\s+let\s+activitySignal\s*=\s*ActivitySignalView\(\)/);
+  assert.match(source, /for\s+child\s+in\s+\[activitySignal,\s*titleLabel,\s*shrinkButton,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
+  assert.match(source, /activitySignal\.leadingAnchor\.constraint\(equalTo:\s*header\.leadingAnchor\)/);
   assert.doesNotMatch(source, /for\s+child\s+in\s+\[autoButton/);
 });
 
@@ -151,23 +151,39 @@ test("native floating window supports a small capsule mode", () => {
 
   assert.match(source, /capsuleWindowSize\s*=\s*NSSize\(width:\s*156,\s*height:\s*44\)/);
   assert.match(source, /final\s+class\s+CapsuleViewController/);
-  assert.match(source, /activityCapsuleLabel/);
+  assert.match(source, /activityCapsuleSignal/);
   assert.match(source, /quotaCapsuleLabel/);
   assert.match(source, /NSClickGestureRecognizer/);
   assert.match(source, /showCapsule/);
 });
 
-test("native activity status stays small and aligned across window modes", () => {
+test("native activity signal uses three persistent lamps without layout shift", () => {
   const source = readMainSwift();
 
-  assert.match(source, /final\s+class\s+ActivityPillView/);
-  assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*68\)/);
-  assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*20\)/);
-  assert.match(source, /dotLabel\.widthAnchor\.constraint\(equalToConstant:\s*8\)/);
-  assert.match(source, /activityCapsuleLabel\.widthAnchor\.constraint\(equalToConstant:\s*42\)/);
-  assert.match(source, /quotaCapsuleLabel\.widthAnchor\.constraint\(equalToConstant:\s*52\)/);
+  assert.match(source, /final\s+class\s+SignalLampView/);
+  assert.match(source, /final\s+class\s+ActivitySignalView/);
+  assert.match(source, /redLamp/);
+  assert.match(source, /yellowLamp/);
+  assert.match(source, /greenLamp/);
+  assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*84\)/);
+  assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*22\)/);
+  assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*8\)/);
+  assert.match(source, /shadowRadius\s*=\s*4/);
+  assert.match(source, /accessibilityDisplayShouldReduceMotion/);
+  assert.match(source, /CATransaction\.setAnimationDuration\(0\.2\)/);
+  assert.doesNotMatch(source, /ActivityPillView/);
   assert.match(source, /statusItem\.button\?\.attributedTitle/);
   assert.match(source, /NSAttributedString\(string:\s*"● "/);
+});
+
+test("capsule reuses the three-lamp activity signal", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /private\s+let\s+activityCapsuleSignal\s*=\s*ActivitySignalView/);
+  assert.match(source, /quotaCapsuleLabel\.widthAnchor\.constraint\(equalToConstant:\s*52\)/);
+  assert.match(source, /let\s+stack\s*=\s*NSStackView\(views:\s*\[activityCapsuleSignal,\s*quotaCapsuleLabel\]\)/);
+  assert.match(source, /stack\.spacing\s*=\s*6/);
+  assert.doesNotMatch(source, /dotCapsuleLabel/);
 });
 
 test("native activity status polls independently from quota refresh", () => {
