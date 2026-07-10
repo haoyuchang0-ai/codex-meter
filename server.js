@@ -4,12 +4,14 @@ const path = require("node:path");
 
 const { CodexAppServerClient } = require("./src/codex-app-server-client");
 const { normalizeRateLimitSnapshot } = require("./src/normalize");
+const { ActivityMonitor } = require("./src/activity-monitor");
 
 const PORT = Number(process.env.PORT || 5487);
 const HOST = process.env.HOST || "127.0.0.1";
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 const client = new CodexAppServerClient();
+const activityMonitor = new ActivityMonitor();
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -68,46 +70,66 @@ async function readRateLimits() {
   };
 }
 
-const server = http.createServer(async (req, res) => {
-  if (req.url === "/api/health") {
-    sendJson(res, 200, { ok: true });
-    return;
-  }
+function createRequestHandler(options = {}) {
+  const rateLimitReader = options.rateLimitReader || readRateLimits;
+  const activityReader = options.activityReader || (() => activityMonitor.snapshot());
 
-  if (req.url === "/api/rate-limits") {
-    try {
-      const data = await readRateLimits();
-      sendJson(res, 200, data);
-    } catch (error) {
-      sendJson(res, 502, {
-        ok: false,
-        error: error.message,
-        details: error.details || null,
-        fetchedAt: new Date().toISOString(),
-      });
+  return async function requestHandler(req, res) {
+    if (req.url === "/api/health") {
+      sendJson(res, 200, { ok: true });
+      return;
     }
-    return;
-  }
 
-  if (req.method !== "GET") {
-    res.writeHead(405, { allow: "GET" });
-    res.end("Method not allowed");
-    return;
-  }
+    if (req.url === "/api/activity") {
+      try {
+        sendJson(res, 200, activityReader());
+      } catch (error) {
+        sendJson(res, 503, {
+          ok: false,
+          error: "Activity status unavailable",
+          fetchedAt: new Date().toISOString(),
+        });
+      }
+      return;
+    }
 
-  sendStatic(req, res);
-});
+    if (req.url === "/api/rate-limits") {
+      try {
+        sendJson(res, 200, await rateLimitReader());
+      } catch (error) {
+        sendJson(res, 502, {
+          ok: false,
+          error: error.message,
+          details: error.details || null,
+          fetchedAt: new Date().toISOString(),
+        });
+      }
+      return;
+    }
 
-server.listen(PORT, HOST, () => {
-  console.log(`Codex quota window: http://${HOST}:${PORT}`);
-});
+    if (req.method !== "GET") {
+      res.writeHead(405, { allow: "GET" });
+      res.end("Method not allowed");
+      return;
+    }
 
-function shutdown() {
-  client.close();
-  server.close(() => {
-    process.exit(0);
-  });
+    sendStatic(req, res);
+  };
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+const server = http.createServer(createRequestHandler());
+
+if (require.main === module) {
+  server.listen(PORT, HOST, () => {
+    console.log(`Codex quota window: http://${HOST}:${PORT}`);
+  });
+
+  const shutdown = () => {
+    client.close();
+    server.close(() => process.exit(0));
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+}
+
+module.exports = { createRequestHandler, readRateLimits };
