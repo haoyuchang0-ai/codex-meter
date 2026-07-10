@@ -32,6 +32,11 @@ test("project README documents GitHub-ready usage in Chinese and English", () =>
   assert.match(readme, /CODEX_CLI/);
   assert.match(readme, /不会主动创建 Codex 对话/);
   assert.match(readme, /does not create Codex conversations/);
+  assert.match(readme, /npm run install:hooks/);
+  assert.match(readme, /重启一次 Codex/);
+  assert.match(readme, /每秒从本机读取一次/);
+  assert.match(readme, /不记录提示词/);
+  assert.match(readme, /waiting > working > done > idle/);
 });
 
 test("project metadata uses the GitHub repository name", () => {
@@ -50,6 +55,13 @@ test("project ignores local-only generated files", () => {
   assert.match(gitignore, /^CodexQuotaFloat\.app\/$/m);
   assert.match(gitignore, /^quota-window\.log$/m);
   assert.match(gitignore, /^quota-window\.pid$/m);
+  assert.match(gitignore, /^\.superpowers\/$/m);
+});
+
+test("project exposes the local Hook installer", () => {
+  const pkg = JSON.parse(read("package.json"));
+
+  assert.equal(pkg.scripts["install:hooks"], "node scripts/install-activity-hooks.js");
 });
 
 test("launcher is portable and builds the native app when missing", () => {

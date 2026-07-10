@@ -12,7 +12,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 - 默认每 60 秒自动刷新，也支持手动刷新。
 - 支持条形视图、圆形仪表盘视图和两套颜色风格。
 - 支持胶囊模式和菜单栏隐藏，隐藏后可从 macOS 菜单栏恢复。
-- 支持四种轻量状态提示：待确认、工作中、已完成、空闲。
+- 使用三灯状态条显示所有本地 Codex 任务的待确认、工作中、已完成和空闲状态。
 - 保留本地网页调试入口。
 
 ## 使用方式
@@ -26,7 +26,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 
 - Click the shrink button in the floating window to enter Capsule mode; click the capsule to restore the full window.
 - Use the macOS menu bar icon to show the window, collapse to capsule, hide to the menu bar, refresh manually, switch styles, or quit.
-- Activity states appear in the full window, Capsule mode, and menu bar: Waiting, Working, Done, and Idle.
+- A three-lamp signal shows aggregate activity across local Codex tasks in the full window and Capsule mode: Waiting, Working, Done, and Idle.
 - Closing the window hides it to the menu bar instead of quitting, so the app remains easy to recover.
 
 ## Quick Start
@@ -38,13 +38,25 @@ Requirements:
 - Xcode Command Line Tools
 - Codex desktop app or Codex CLI with `app-server`
 
-Run the floating window:
+Install the local activity Hooks once, then restart Codex:
+
+```bash
+npm run install:hooks
+```
+
+安装完成后需要重启一次 Codex，之后启动悬浮窗：
+
+Restart Codex once after installation, then run the floating window:
 
 ```bash
 ./launch-floating-window.command
 ```
 
 The launcher starts the local quota service, builds `CodexQuotaFloat.app` if needed, and opens the floating window.
+
+活动状态每秒从本机读取一次，额度仍每 60 秒刷新一次。状态优先级为 `waiting > working > done > idle`；完成状态保留 8 秒。
+
+Activity is read locally once per second, while quota still refreshes once per minute. Priority is `waiting > working > done > idle`, and Done remains visible for 8 seconds.
 
 You can also start only the local service:
 
@@ -109,6 +121,10 @@ Project structure:
 
 ## 隐私与额度说明
 
-这个工具读取 Codex app-server 的账户额度状态，不会主动创建 Codex 对话，也不发送模型请求。
+这个工具读取 Codex app-server 的账户额度状态和本地任务事件，不会主动创建 Codex 对话，也不发送模型请求，因此状态轮询本身不消耗 Codex 额度。
 
-This tool reads Codex app-server account quota state. It does not create Codex conversations or send model requests.
+Hook 状态文件只包含会话 ID、状态和更新时间。工具不记录提示词、回复、工具参数、工作路径或任务标题；所有数据都保留在本机。
+
+This tool reads Codex app-server quota data and local task events. It does not create Codex conversations or send model requests, so activity polling does not consume Codex quota.
+
+Hook state files contain only a session ID, status, and timestamp. Prompts, replies, tool arguments, working paths, and task titles are not recorded; all data stays local.
