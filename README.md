@@ -12,7 +12,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 - 默认每 60 秒自动刷新，也支持手动刷新。
 - 支持条形视图、圆形仪表盘视图和两套颜色风格。
 - 支持胶囊模式和菜单栏隐藏，隐藏后可从 macOS 菜单栏恢复。
-- 使用三灯状态条显示所有本地 Codex 任务的待确认、工作中、已完成和空闲状态。
+- 使用动态状态胶囊显示所有本地 Codex 任务的待确认、工作中、已完成和空闲状态。
 - 保留本地网页调试入口。
 
 ## 使用方式
@@ -26,7 +26,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 
 - Click the shrink button in the floating window to enter Capsule mode; click the capsule to restore the full window.
 - Use the macOS menu bar icon to show the window, collapse to capsule, hide to the menu bar, refresh manually, switch styles, or quit.
-- A three-lamp signal shows aggregate activity across local Codex tasks in the full window and Capsule mode: Waiting, Working, Done, and Idle.
+- A dynamic status capsule shows aggregate activity across local Codex tasks in the full window and Capsule mode: Waiting, Working, Done, and Idle.
 - Closing the window hides it to the menu bar instead of quitting, so the app remains easy to recover.
 
 ## Quick Start

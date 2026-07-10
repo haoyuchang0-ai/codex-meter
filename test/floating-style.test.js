@@ -133,9 +133,9 @@ test("native floating window keeps secondary controls visually quiet", () => {
 
   assert.match(source, /gaugeStack\.spacing\s*=\s*12/);
   assert.match(source, /button\.alphaValue\s*=\s*0\.72/);
-  assert.match(source, /private\s+let\s+activitySignal\s*=\s*ActivitySignalView\(\)/);
-  assert.match(source, /for\s+child\s+in\s+\[activitySignal,\s*titleLabel,\s*shrinkButton,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
-  assert.match(source, /activitySignal\.leadingAnchor\.constraint\(equalTo:\s*header\.leadingAnchor\)/);
+  assert.match(source, /private\s+let\s+activityCapsule\s*=\s*ActivityCapsuleView\(\)/);
+  assert.match(source, /for\s+child\s+in\s+\[activityCapsule,\s*titleLabel,\s*shrinkButton,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
+  assert.match(source, /activityCapsule\.leadingAnchor\.constraint\(equalTo:\s*header\.leadingAnchor\)/);
   assert.doesNotMatch(source, /for\s+child\s+in\s+\[autoButton/);
 });
 
@@ -151,43 +151,39 @@ test("native floating window supports a small capsule mode", () => {
 
   assert.match(source, /capsuleWindowSize\s*=\s*NSSize\(width:\s*156,\s*height:\s*44\)/);
   assert.match(source, /final\s+class\s+CapsuleViewController/);
-  assert.match(source, /activityCapsuleSignal/);
+  assert.match(source, /activityStatusCapsule/);
   assert.match(source, /quotaCapsuleLabel/);
   assert.match(source, /NSClickGestureRecognizer/);
   assert.match(source, /showCapsule/);
 });
 
-test("native activity signal uses three persistent lamps without layout shift", () => {
+test("native activity uses a fixed dynamic capsule without layout shift", () => {
   const source = readMainSwift();
 
-  assert.match(source, /final\s+class\s+SignalLampView/);
-  assert.match(source, /final\s+class\s+ActivitySignalView/);
-  assert.match(source, /redLamp/);
-  assert.match(source, /yellowLamp/);
-  assert.match(source, /greenLamp/);
+  assert.match(source, /final\s+class\s+ActivityCapsuleView/);
+  assert.match(source, /private\s+let\s+iconView\s*=\s*NSImageView\(\)/);
+  assert.match(source, /private\s+var\s+currentStatus:\s*ActivityStatus\?/);
   assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*96\)/);
   assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*24\)/);
-  assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*12\)/);
-  assert.match(source, /shadowRadius\s*=\s*6/);
-  assert.match(source, /active\s*\?\s*1\s*:\s*0\.12/);
-  assert.match(source, /layer\?\.borderWidth\s*=\s*active\s*\?\s*1\s*:\s*0\.75/);
-  assert.match(source, /active\s*\?\s*NSColor\.white\.withAlphaComponent\(0\.90\)/);
-  assert.match(source, /shadowOpacity\s*=\s*active\s*\?\s*0\.86\s*:\s*0/);
-  assert.match(source, /private\s+let\s+highlightLayer\s*=\s*CALayer\(\)/);
-  assert.match(source, /highlightLayer\.opacity\s*=\s*active\s*\?\s*0\.95\s*:\s*0/);
+  assert.match(source, /waveform\.path/);
+  assert.match(source, /exclamationmark\.triangle\.fill/);
+  assert.match(source, /checkmark\.circle\.fill/);
+  assert.match(source, /circle\.fill/);
+  assert.match(source, /guard\s+currentStatus\s*!=\s*status/);
   assert.match(source, /accessibilityDisplayShouldReduceMotion/);
   assert.match(source, /CATransaction\.setAnimationDuration\(0\.2\)/);
   assert.doesNotMatch(source, /ActivityPillView/);
+  assert.doesNotMatch(source, /SignalLampView/);
   assert.match(source, /statusItem\.button\?\.attributedTitle/);
   assert.match(source, /NSAttributedString\(string:\s*"● "/);
 });
 
-test("capsule reuses the three-lamp activity signal", () => {
+test("small window reuses the dynamic activity capsule", () => {
   const source = readMainSwift();
 
-  assert.match(source, /private\s+let\s+activityCapsuleSignal\s*=\s*ActivitySignalView/);
+  assert.match(source, /private\s+let\s+activityStatusCapsule\s*=\s*ActivityCapsuleView/);
   assert.match(source, /quotaCapsuleLabel\.widthAnchor\.constraint\(equalToConstant:\s*52\)/);
-  assert.match(source, /let\s+stack\s*=\s*NSStackView\(views:\s*\[activityCapsuleSignal,\s*quotaCapsuleLabel\]\)/);
+  assert.match(source, /let\s+stack\s*=\s*NSStackView\(views:\s*\[activityStatusCapsule,\s*quotaCapsuleLabel\]\)/);
   assert.match(source, /stack\.spacing\s*=\s*4/);
   assert.doesNotMatch(source, /dotCapsuleLabel/);
 });

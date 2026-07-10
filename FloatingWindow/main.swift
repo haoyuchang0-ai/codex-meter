@@ -27,7 +27,7 @@ enum QuotaDisplayMode {
     }
 }
 
-enum ActivityStatus {
+enum ActivityStatus: Equatable {
     case waiting
     case working
     case done
@@ -68,6 +68,21 @@ enum ActivityStatus {
         }
     }
 
+    var symbolName: String {
+        switch self {
+        case .waiting:
+            return "exclamationmark.triangle.fill"
+        case .working:
+            return "waveform.path"
+        case .done:
+            return "checkmark.circle.fill"
+        case .idle:
+            return "circle.fill"
+        case .unknown:
+            return "questionmark.circle.fill"
+        }
+    }
+
     init(apiValue: String) {
         switch apiValue {
         case "waiting": self = .waiting
@@ -79,61 +94,10 @@ enum ActivityStatus {
     }
 }
 
-final class SignalLampView: NSView {
-    private let semanticColor: NSColor
-    private let highlightLayer = CALayer()
-
-    init(color: NSColor) {
-        semanticColor = color
-        super.init(frame: .zero)
-        wantsLayer = true
-        layer?.cornerRadius = 6
-        layer?.cornerCurve = .continuous
-        layer?.masksToBounds = false
-        layer?.shadowRadius = 6
-        layer?.shadowOffset = .zero
-        highlightLayer.backgroundColor = NSColor.white.cgColor
-        highlightLayer.cornerRadius = 1.5
-        highlightLayer.shadowColor = NSColor.white.cgColor
-        highlightLayer.shadowOpacity = 0.8
-        highlightLayer.shadowRadius = 1.5
-        highlightLayer.shadowOffset = .zero
-        layer?.addSublayer(highlightLayer)
-        translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: 12),
-            heightAnchor.constraint(equalToConstant: 12)
-        ])
-        setActive(false)
-    }
-
-    required init?(coder: NSCoder) {
-        nil
-    }
-
-    override func layout() {
-        super.layout()
-        layer?.shadowPath = CGPath(ellipseIn: bounds, transform: nil)
-        highlightLayer.frame = CGRect(x: 2, y: 7, width: 3, height: 3)
-    }
-
-    func setActive(_ active: Bool) {
-        layer?.backgroundColor = semanticColor.withAlphaComponent(active ? 1 : 0.12).cgColor
-        layer?.borderWidth = active ? 1 : 0.75
-        layer?.borderColor = (active
-            ? NSColor.white.withAlphaComponent(0.90)
-            : semanticColor.withAlphaComponent(0.38)).cgColor
-        layer?.shadowColor = semanticColor.cgColor
-        layer?.shadowOpacity = active ? 0.86 : 0
-        highlightLayer.opacity = active ? 0.95 : 0
-    }
-}
-
-final class ActivitySignalView: NSView {
-    private let redLamp = SignalLampView(color: .systemRed)
-    private let yellowLamp = SignalLampView(color: .systemYellow)
-    private let greenLamp = SignalLampView(color: .systemGreen)
+final class ActivityCapsuleView: NSView {
+    private let iconView = NSImageView()
     private let textLabel = NSTextField(labelWithString: ActivityStatus.idle.label)
+    private var currentStatus: ActivityStatus?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -141,7 +105,10 @@ final class ActivitySignalView: NSView {
         layer?.cornerRadius = 12
         layer?.cornerCurve = .continuous
         layer?.masksToBounds = false
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.44).cgColor
+        layer?.borderWidth = 0.5
+
+        iconView.imageScaling = .scaleProportionallyDown
+        iconView.translatesAutoresizingMaskIntoConstraints = false
 
         textLabel.font = .systemFont(ofSize: 11, weight: .semibold)
         textLabel.textColor = NSColor(calibratedRed: 0.27, green: 0.36, blue: 0.46, alpha: 1)
@@ -149,20 +116,18 @@ final class ActivitySignalView: NSView {
         textLabel.lineBreakMode = .byClipping
         textLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let lamps = NSStackView(views: [redLamp, yellowLamp, greenLamp])
-        lamps.orientation = .horizontal
-        lamps.spacing = 3
-        lamps.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(lamps)
+        addSubview(iconView)
         addSubview(textLabel)
 
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: 96),
             heightAnchor.constraint(equalToConstant: 24),
-            lamps.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 7),
-            lamps.centerYAnchor.constraint(equalTo: centerYAnchor),
-            textLabel.leadingAnchor.constraint(equalTo: lamps.trailingAnchor, constant: 5),
-            textLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 15),
+            iconView.heightAnchor.constraint(equalToConstant: 15),
+            textLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 6),
+            textLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             textLabel.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
 
@@ -174,28 +139,54 @@ final class ActivitySignalView: NSView {
     }
 
     func update(status: ActivityStatus, animated: Bool = true) {
+        guard currentStatus != status else { return }
+        let hadStatus = currentStatus != nil
+        currentStatus = status
+
         let apply = {
-            self.redLamp.setActive(status == .waiting)
-            self.yellowLamp.setActive(status == .working)
-            self.greenLamp.setActive(status == .done)
+            let configuration = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+            self.iconView.image = NSImage(
+                systemSymbolName: status.symbolName,
+                accessibilityDescription: status.label
+            )?.withSymbolConfiguration(configuration)
+            self.iconView.contentTintColor = status.color
             self.textLabel.font = .systemFont(
                 ofSize: status == .unknown ? 9 : 11,
                 weight: .semibold
             )
             self.textLabel.stringValue = status.label
+            self.layer?.backgroundColor = status.color.withAlphaComponent(
+                status == .idle ? 0.08 : 0.13
+            ).cgColor
+            self.layer?.borderColor = status.color.withAlphaComponent(0.22).cgColor
             self.setAccessibilityLabel(status.menuTitle)
             self.toolTip = status.menuTitle
         }
 
-        guard animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+        guard animated, hadStatus, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             apply()
             return
         }
 
         CATransaction.begin()
-        CATransaction.setAnimationDuration(0.2)
+        CATransaction.setDisableActions(true)
+        layer?.setAffineTransform(CGAffineTransform(scaleX: 1.05, y: 1.05))
+        iconView.alphaValue = 0.30
+        textLabel.alphaValue = 0.55
         apply()
         CATransaction.commit()
+
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(0.2)
+        layer?.setAffineTransform(.identity)
+        CATransaction.commit()
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            iconView.animator().alphaValue = 1
+            textLabel.animator().alphaValue = 1
+        }
     }
 }
 
@@ -546,7 +537,7 @@ final class CircularGaugeView: NSView {
 }
 
 final class CapsuleViewController: NSViewController {
-    private let activityCapsuleSignal = ActivitySignalView()
+    private let activityStatusCapsule = ActivityCapsuleView()
     private let quotaCapsuleLabel = NSTextField(labelWithString: "--/--")
     private var currentActivityStatus: ActivityStatus = .idle
     private var primaryWindow: QuotaWindow?
@@ -570,7 +561,7 @@ final class CapsuleViewController: NSViewController {
         quotaCapsuleLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
         quotaCapsuleLabel.alignment = .right
 
-        let stack = NSStackView(views: [activityCapsuleSignal, quotaCapsuleLabel])
+        let stack = NSStackView(views: [activityStatusCapsule, quotaCapsuleLabel])
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.distribution = .gravityAreas
@@ -598,7 +589,7 @@ final class CapsuleViewController: NSViewController {
 
     func updateActivityStatus(_ status: ActivityStatus) {
         currentActivityStatus = status
-        activityCapsuleSignal.update(status: status)
+        activityStatusCapsule.update(status: status)
         updateTooltip()
     }
 
@@ -639,7 +630,7 @@ final class QuotaViewController: NSViewController {
     private let gaugeButton = NSButton()
     private let colorButton = NSButton()
     private let refreshButton = NSButton()
-    private let activitySignal = ActivitySignalView()
+    private let activityCapsule = ActivityCapsuleView()
     private let contentStage = NSView()
     private lazy var rowStack = NSStackView(views: [primaryMeter, secondaryMeter])
     private lazy var gaugeStack = NSStackView(views: [primaryGauge, secondaryGauge])
@@ -689,7 +680,7 @@ final class QuotaViewController: NSViewController {
 
         let header = NSView()
         header.translatesAutoresizingMaskIntoConstraints = false
-        for child in [activitySignal, titleLabel, shrinkButton, gaugeButton, colorButton, refreshButton] {
+        for child in [activityCapsule, titleLabel, shrinkButton, gaugeButton, colorButton, refreshButton] {
             child.translatesAutoresizingMaskIntoConstraints = false
             header.addSubview(child)
         }
@@ -728,8 +719,8 @@ final class QuotaViewController: NSViewController {
         NSLayoutConstraint.activate([
             header.heightAnchor.constraint(equalToConstant: 24),
             contentStage.heightAnchor.constraint(equalToConstant: 116),
-            activitySignal.leadingAnchor.constraint(equalTo: header.leadingAnchor),
-            activitySignal.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            activityCapsule.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            activityCapsule.centerYAnchor.constraint(equalTo: header.centerYAnchor),
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: header.centerYAnchor),
 
@@ -921,7 +912,7 @@ final class QuotaViewController: NSViewController {
     }
 
     private func setActivityStatus(_ status: ActivityStatus) {
-        activitySignal.update(status: status)
+        activityCapsule.update(status: status)
         onActivityStatusChanged?(status)
     }
 
