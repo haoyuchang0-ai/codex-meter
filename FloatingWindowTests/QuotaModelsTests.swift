@@ -4,6 +4,25 @@ import Foundation
 struct QuotaModelsTests {
     static func main() throws {
         try parsesRateLimitResponse()
+        try parsesActivityResponse()
+    }
+
+    private static func parsesActivityResponse() throws {
+        let json = """
+        {
+          "status": "waiting",
+          "updatedAt": "2026-07-10T02:23:05.016Z",
+          "activeCount": 2,
+          "waitingCount": 1,
+          "source": "local",
+          "hooksInstalled": true
+        }
+        """
+        let snapshot = try JSONDecoder().decode(ActivitySnapshot.self, from: Data(json.utf8))
+        assertEqual(snapshot.status, "waiting")
+        assertEqual(snapshot.activeCount, 2)
+        assertEqual(snapshot.waitingCount, 1)
+        assertEqual(snapshot.hooksInstalled, true)
     }
 
     private static func parsesRateLimitResponse() throws {

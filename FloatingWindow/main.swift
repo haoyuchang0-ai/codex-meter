@@ -2,7 +2,10 @@ import Cocoa
 import Foundation
 
 private let refreshInterval: TimeInterval = 60
+private let activityRefreshInterval: TimeInterval = 1
+private let activityFailureGraceInterval: TimeInterval = 10
 private let quotaEndpoint = URL(string: "http://127.0.0.1:5487/api/rate-limits")!
+private let activityEndpoint = URL(string: "http://127.0.0.1:5487/api/activity")!
 private let expandedWindowSize = NSSize(width: 312, height: 184)
 private let capsuleWindowSize = NSSize(width: 156, height: 44)
 
@@ -29,6 +32,7 @@ enum ActivityStatus {
     case working
     case done
     case idle
+    case unknown
 
     var label: String {
         switch self {
@@ -40,6 +44,8 @@ enum ActivityStatus {
             return "已完成"
         case .idle:
             return "空闲"
+        case .unknown:
+            return "状态未知"
         }
     }
 
@@ -57,6 +63,18 @@ enum ActivityStatus {
             return NSColor(calibratedRed: 0.18, green: 0.75, blue: 0.44, alpha: 1)
         case .idle:
             return NSColor(calibratedRed: 0.54, green: 0.58, blue: 0.64, alpha: 1)
+        case .unknown:
+            return NSColor(calibratedWhite: 0.46, alpha: 1)
+        }
+    }
+
+    init(apiValue: String) {
+        switch apiValue {
+        case "waiting": self = .waiting
+        case "working": self = .working
+        case "done": self = .done
+        case "idle": self = .idle
+        default: self = .unknown
         }
     }
 }
@@ -570,11 +588,14 @@ final class QuotaViewController: NSViewController {
     private var displayMode: QuotaDisplayMode = .circularDashboard
     private var isAutoRefreshEnabled = true
     private var refreshTimer: Timer?
-    private var idleStatusTimer: Timer?
+    private var activityTimer: Timer?
+    private var lastActivitySuccessAt: Date?
+    private var activityFailureStartedAt: Date?
     var onCapsuleRequested: (() -> Void)?
     var onQuotaWindowsChanged: ((QuotaWindow?, QuotaWindow?) -> Void)?
     var onStatusTextChanged: ((String) -> Void)?
     var onActivityStatusChanged: ((ActivityStatus) -> Void)?
+    var onActivityIntegrationChanged: ((Bool) -> Void)?
 
     override func loadView() {
         view = NSView(frame: NSRect(origin: .zero, size: expandedWindowSize))
@@ -588,9 +609,13 @@ final class QuotaViewController: NSViewController {
         super.viewDidLoad()
         buildUI()
         refreshNow()
+        refreshActivityNow()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             guard let self, self.isAutoRefreshEnabled else { return }
             self.refreshNow()
+        }
+        activityTimer = Timer.scheduledTimer(withTimeInterval: activityRefreshInterval, repeats: true) { [weak self] _ in
+            self?.refreshActivityNow()
         }
     }
 
@@ -719,7 +744,6 @@ final class QuotaViewController: NSViewController {
     }
 
     func refreshNow(allowServiceStart: Bool = true) {
-        setActivityStatus(.working)
         refreshButton.isEnabled = false
 
         URLSession.shared.dataTask(with: quotaEndpoint) { [weak self] data, _, error in
@@ -742,7 +766,6 @@ final class QuotaViewController: NSViewController {
                     self.render(snapshot)
                 } catch {
                     self.titleLabel.stringValue = "Codex !"
-                    self.setActivityStatus(.waiting)
                 }
             }
         }.resume()
@@ -757,7 +780,6 @@ final class QuotaViewController: NSViewController {
         onQuotaWindowsChanged?(windows["primary"], windows["secondary"])
         onStatusTextChanged?(statusText(primary: windows["primary"], secondary: windows["secondary"]))
         titleLabel.stringValue = "Codex"
-        setActivityStatus(.done)
     }
 
     private func handleRefreshFailure(allowServiceStart: Bool) {
@@ -778,7 +800,38 @@ final class QuotaViewController: NSViewController {
 
     private func markRefreshFailed() {
         titleLabel.stringValue = "Codex !"
-        setActivityStatus(.waiting)
+    }
+
+    private func refreshActivityNow() {
+        URLSession.shared.dataTask(with: activityEndpoint) { [weak self] data, _, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard error == nil,
+                      let data,
+                      let snapshot = try? JSONDecoder().decode(ActivitySnapshot.self, from: data) else {
+                    self.handleActivityFailure()
+                    return
+                }
+
+                self.lastActivitySuccessAt = Date()
+                self.activityFailureStartedAt = nil
+                self.setActivityStatus(ActivityStatus(apiValue: snapshot.status))
+                self.onActivityIntegrationChanged?(snapshot.hooksInstalled)
+            }
+        }.resume()
+    }
+
+    private func handleActivityFailure() {
+        if activityFailureStartedAt == nil {
+            activityFailureStartedAt = Date()
+        }
+
+        guard let activityFailureStartedAt,
+              Date().timeIntervalSince(activityFailureStartedAt) >= activityFailureGraceInterval else {
+            return
+        }
+
+        setActivityStatus(.unknown)
     }
 
     func toggleAutoRefresh() -> Bool {
@@ -809,14 +862,8 @@ final class QuotaViewController: NSViewController {
     }
 
     private func setActivityStatus(_ status: ActivityStatus) {
-        idleStatusTimer?.invalidate()
         activityPill.update(status: status)
         onActivityStatusChanged?(status)
-
-        guard status == .done else { return }
-        idleStatusTimer = Timer.scheduledTimer(withTimeInterval: 2.8, repeats: false) { [weak self] _ in
-            self?.setActivityStatus(.idle)
-        }
     }
 
     private func applyVisualStyle() {
@@ -891,6 +938,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem?
     private var autoRefreshMenuItem: NSMenuItem?
     private var activityMenuItem: NSMenuItem?
+    private var activityIntegrationMenuItem: NSMenuItem?
     private var currentActivityStatus: ActivityStatus = .idle
     private var quotaStatusText = "--/--"
 
@@ -917,6 +965,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         controller.onActivityStatusChanged = { [weak self] status in
             self?.updateActivityStatus(status)
+        }
+        controller.onActivityIntegrationChanged = { [weak self] installed in
+            self?.updateActivityIntegration(installed)
         }
         capsuleController.onOpenRequested = { [weak self] in
             self?.showExpanded(nil)
@@ -981,6 +1032,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let activityItem = NSMenuItem(title: "状态：空闲", action: nil, keyEquivalent: "")
         menu.addItem(activityItem)
         activityMenuItem = activityItem
+
+        let integrationItem = NSMenuItem(title: "状态监听：检查中", action: nil, keyEquivalent: "")
+        menu.addItem(integrationItem)
+        activityIntegrationMenuItem = integrationItem
 
         menu.addItem(menuItem("手动刷新", action: #selector(refreshFromMenu(_:))))
 
@@ -1060,6 +1115,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         capsuleController?.updateActivityStatus(status)
         activityMenuItem?.title = status.menuTitle
         renderStatusItemTitle()
+    }
+
+    private func updateActivityIntegration(_ installed: Bool) {
+        activityIntegrationMenuItem?.title = installed
+            ? "状态监听：完整"
+            : "状态监听：需安装 Hooks"
+        activityIntegrationMenuItem?.toolTip = installed
+            ? "Codex Meter 正在读取完整本地任务状态"
+            : "在项目目录运行 npm run install:hooks，然后重启 Codex"
     }
 
     private func renderStatusItemTitle() {

@@ -18,3 +18,12 @@ struct QuotaWindow: Decodable {
     let resetsAtEpochSeconds: Int?
     let windowDurationMins: Int?
 }
+
+struct ActivitySnapshot: Decodable {
+    let status: String
+    let updatedAt: String?
+    let activeCount: Int
+    let waitingCount: Int
+    let source: String?
+    let hooksInstalled: Bool
+}

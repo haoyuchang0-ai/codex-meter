@@ -28,7 +28,7 @@ test("native floating window can switch to minimalist dashboard style", () => {
   assert.match(source, /applyVisualStyle/);
 });
 
-test("native floating window defines four compact activity states", () => {
+test("native floating window defines activity states", () => {
   const source = readMainSwift();
 
   assert.match(source, /enum\s+ActivityStatus/);
@@ -36,10 +36,12 @@ test("native floating window defines four compact activity states", () => {
   assert.match(source, /case\s+working/);
   assert.match(source, /case\s+done/);
   assert.match(source, /case\s+idle/);
+  assert.match(source, /case\s+unknown/);
   assert.match(source, /return\s+"待确认"/);
   assert.match(source, /return\s+"工作中"/);
   assert.match(source, /return\s+"已完成"/);
   assert.match(source, /return\s+"空闲"/);
+  assert.match(source, /return\s+"状态未知"/);
   assert.match(source, /calibratedRed:\s*0\.88,\s*green:\s*0\.35,\s*blue:\s*0\.35/);
   assert.match(source, /calibratedRed:\s*0\.85,\s*green:\s*0\.64,\s*blue:\s*0\.11/);
   assert.match(source, /calibratedRed:\s*0\.18,\s*green:\s*0\.75,\s*blue:\s*0\.44/);
@@ -168,15 +170,18 @@ test("native activity status stays small and aligned across window modes", () =>
   assert.match(source, /NSAttributedString\(string:\s*"● "/);
 });
 
-test("native activity status follows refresh lifecycle without adding visual noise", () => {
+test("native activity status polls independently from quota refresh", () => {
   const source = readMainSwift();
 
-  assert.match(source, /private\s+var\s+isAutoRefreshEnabled\s*=\s*true/);
-  assert.match(source, /setActivityStatus\(\.working\)/);
-  assert.match(source, /setActivityStatus\(\.done\)/);
-  assert.match(source, /setActivityStatus\(\.waiting\)/);
-  assert.match(source, /Timer\.scheduledTimer\(withTimeInterval:\s*2\.8/);
-  assert.match(source, /onActivityStatusChanged\?\(status\)/);
+  assert.match(source, /activityEndpoint/);
+  assert.match(source, /activityRefreshInterval:\s*TimeInterval\s*=\s*1/);
+  assert.match(source, /refreshActivityNow\(\)/);
+  assert.match(source, /private\s+var\s+activityTimer:\s*Timer\?/);
+  assert.doesNotMatch(source, /refreshNow[\s\S]{0,220}setActivityStatus\(\.working\)/);
+  assert.doesNotMatch(source, /render\(_\s+snapshot:\s*QuotaSnapshot\)[\s\S]{0,500}setActivityStatus\(\.done\)/);
+  assert.doesNotMatch(source, /idleStatusTimer/);
+  assert.match(source, /onActivityIntegrationChanged/);
+  assert.match(source, /状态监听：需安装 Hooks/);
 });
 
 test("native floating window can recover when the local quota service is not running", () => {
