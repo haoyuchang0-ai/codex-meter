@@ -18,8 +18,18 @@ test("project README documents GitHub-ready usage in Chinese and English", () =>
   assert.match(readme, /## Build the macOS App/);
   assert.match(readme, /胶囊模式/);
   assert.match(readme, /菜单栏/);
+  assert.match(readme, /待确认/);
+  assert.match(readme, /工作中/);
+  assert.match(readme, /已完成/);
+  assert.match(readme, /空闲/);
   assert.match(readme, /Capsule mode/);
   assert.match(readme, /menu bar/);
+  assert.match(readme, /Waiting/);
+  assert.match(readme, /Working/);
+  assert.match(readme, /Done/);
+  assert.match(readme, /Idle/);
+  assert.match(readme, /ChatGPT\.app/);
+  assert.match(readme, /CODEX_CLI/);
   assert.match(readme, /不会主动创建 Codex 对话/);
   assert.match(readme, /does not create Codex conversations/);
 });
@@ -39,6 +49,7 @@ test("project ignores local-only generated files", () => {
   assert.match(gitignore, /^build\/$/m);
   assert.match(gitignore, /^CodexQuotaFloat\.app\/$/m);
   assert.match(gitignore, /^quota-window\.log$/m);
+  assert.match(gitignore, /^quota-window\.pid$/m);
 });
 
 test("launcher is portable and builds the native app when missing", () => {
@@ -57,4 +68,14 @@ test("launcher only requires Node when it needs to start the local service", () 
     launcher.indexOf('/usr/bin/curl -fsS "$HEALTH_URL"') <
       launcher.indexOf('command -v node'),
   );
+});
+
+test("launcher keeps the local quota service alive after launch", () => {
+  const launcher = read("launch-floating-window.command");
+
+  assert.match(launcher, /PID_FILE="\$ROOT\/quota-window\.pid"/);
+  assert.match(launcher, /codex-primary-runtime\/dependencies\/node\/bin\/node/);
+  assert.match(launcher, /nohup\s+"\$NODE_BIN"\s+server\.js/);
+  assert.match(launcher, /echo\s+\$!\s+>\s+"\$PID_FILE"/);
+  assert.match(launcher, /disown/);
 });

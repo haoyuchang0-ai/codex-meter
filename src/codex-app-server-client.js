@@ -1,11 +1,39 @@
 const { spawn } = require("node:child_process");
+const fs = require("node:fs");
+const path = require("node:path");
 const readline = require("node:readline");
 
-const DEFAULT_CODEX_CLI = "/Applications/Codex.app/Contents/Resources/codex";
+const DEFAULT_CODEX_CLI_CANDIDATES = [
+  "/Applications/ChatGPT.app/Contents/Resources/codex",
+  "/Applications/Codex.app/Contents/Resources/codex",
+];
+
+function resolveCodexCli(options = {}) {
+  if (options.codexCli) {
+    return options.codexCli;
+  }
+
+  const env = options.env || process.env;
+  if (env.CODEX_CLI) {
+    return env.CODEX_CLI;
+  }
+
+  const existsSync = options.existsSync || fs.existsSync;
+  const pathCandidates = (env.PATH || "")
+    .split(path.delimiter)
+    .filter(Boolean)
+    .map((entry) => path.join(entry, "codex"));
+
+  return (
+    [...DEFAULT_CODEX_CLI_CANDIDATES, ...pathCandidates].find((candidate) =>
+      existsSync(candidate),
+    ) || DEFAULT_CODEX_CLI_CANDIDATES[0]
+  );
+}
 
 class CodexAppServerClient {
   constructor(options = {}) {
-    this.codexCli = options.codexCli || process.env.CODEX_CLI || DEFAULT_CODEX_CLI;
+    this.codexCli = resolveCodexCli(options);
     this.requestTimeoutMs = options.requestTimeoutMs || 15000;
     this.process = null;
     this.pending = new Map();
@@ -162,4 +190,5 @@ class CodexAppServerClient {
 
 module.exports = {
   CodexAppServerClient,
+  resolveCodexCli,
 };

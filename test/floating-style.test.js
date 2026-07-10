@@ -28,6 +28,24 @@ test("native floating window can switch to minimalist dashboard style", () => {
   assert.match(source, /applyVisualStyle/);
 });
 
+test("native floating window defines four compact activity states", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /enum\s+ActivityStatus/);
+  assert.match(source, /case\s+waiting/);
+  assert.match(source, /case\s+working/);
+  assert.match(source, /case\s+done/);
+  assert.match(source, /case\s+idle/);
+  assert.match(source, /return\s+"待确认"/);
+  assert.match(source, /return\s+"工作中"/);
+  assert.match(source, /return\s+"已完成"/);
+  assert.match(source, /return\s+"空闲"/);
+  assert.match(source, /calibratedRed:\s*0\.88,\s*green:\s*0\.35,\s*blue:\s*0\.35/);
+  assert.match(source, /calibratedRed:\s*0\.85,\s*green:\s*0\.64,\s*blue:\s*0\.11/);
+  assert.match(source, /calibratedRed:\s*0\.18,\s*green:\s*0\.75,\s*blue:\s*0\.44/);
+  assert.match(source, /calibratedRed:\s*0\.54,\s*green:\s*0\.58,\s*blue:\s*0\.64/);
+});
+
 test("native floating window removes the left status cluster", () => {
   const source = readMainSwift();
 
@@ -113,9 +131,10 @@ test("native floating window keeps secondary controls visually quiet", () => {
 
   assert.match(source, /gaugeStack\.spacing\s*=\s*12/);
   assert.match(source, /button\.alphaValue\s*=\s*0\.72/);
-  assert.match(source, /autoButton\.alphaValue\s*=\s*0\.64/);
-  assert.match(source, /for\s+child\s+in\s+\[autoButton,\s*titleLabel,\s*shrinkButton,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
-  assert.match(source, /autoButton\.leadingAnchor\.constraint\(equalTo:\s*header\.leadingAnchor\)/);
+  assert.match(source, /private\s+let\s+activityPill\s*=\s*ActivityPillView\(\)/);
+  assert.match(source, /for\s+child\s+in\s+\[activityPill,\s*titleLabel,\s*shrinkButton,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
+  assert.match(source, /activityPill\.leadingAnchor\.constraint\(equalTo:\s*header\.leadingAnchor\)/);
+  assert.doesNotMatch(source, /for\s+child\s+in\s+\[autoButton/);
 });
 
 test("native floating window hides default macOS traffic-light controls", () => {
@@ -130,10 +149,47 @@ test("native floating window supports a small capsule mode", () => {
 
   assert.match(source, /capsuleWindowSize\s*=\s*NSSize\(width:\s*156,\s*height:\s*44\)/);
   assert.match(source, /final\s+class\s+CapsuleViewController/);
-  assert.match(source, /primaryCapsuleLabel/);
-  assert.match(source, /secondaryCapsuleLabel/);
+  assert.match(source, /activityCapsuleLabel/);
+  assert.match(source, /quotaCapsuleLabel/);
   assert.match(source, /NSClickGestureRecognizer/);
   assert.match(source, /showCapsule/);
+});
+
+test("native activity status stays small and aligned across window modes", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /final\s+class\s+ActivityPillView/);
+  assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*68\)/);
+  assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*20\)/);
+  assert.match(source, /dotLabel\.widthAnchor\.constraint\(equalToConstant:\s*8\)/);
+  assert.match(source, /activityCapsuleLabel\.widthAnchor\.constraint\(equalToConstant:\s*42\)/);
+  assert.match(source, /quotaCapsuleLabel\.widthAnchor\.constraint\(equalToConstant:\s*52\)/);
+  assert.match(source, /statusItem\.button\?\.attributedTitle/);
+  assert.match(source, /NSAttributedString\(string:\s*"● "/);
+});
+
+test("native activity status follows refresh lifecycle without adding visual noise", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /private\s+var\s+isAutoRefreshEnabled\s*=\s*true/);
+  assert.match(source, /setActivityStatus\(\.working\)/);
+  assert.match(source, /setActivityStatus\(\.done\)/);
+  assert.match(source, /setActivityStatus\(\.waiting\)/);
+  assert.match(source, /Timer\.scheduledTimer\(withTimeInterval:\s*2\.8/);
+  assert.match(source, /onActivityStatusChanged\?\(status\)/);
+});
+
+test("native floating window can recover when the local quota service is not running", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /final\s+class\s+LocalQuotaService/);
+  assert.match(source, /Bundle\.main\.bundleURL\.deletingLastPathComponent\(\)/);
+  assert.match(source, /server\.js/);
+  assert.match(source, /quota-window\.log/);
+  assert.match(source, /quota-window\.pid/);
+  assert.match(source, /ensureRunning/);
+  assert.match(source, /refreshNow\(allowServiceStart:\s*false\)/);
+  assert.match(source, /handleRefreshFailure\(allowServiceStart:/);
 });
 
 test("native floating window can hide safely into the macOS menu bar", () => {
@@ -144,6 +200,7 @@ test("native floating window can hide safely into the macOS menu bar", () => {
   assert.match(source, /收起为胶囊/);
   assert.match(source, /隐藏到菜单栏/);
   assert.match(source, /手动刷新/);
+  assert.match(source, /状态：空闲/);
   assert.match(source, /退出/);
 });
 
