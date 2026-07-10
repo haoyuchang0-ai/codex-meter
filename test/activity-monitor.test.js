@@ -85,6 +85,52 @@ test("reads rollout and hook state without returning private content", () => {
   assert.equal(monitor.snapshot().status, "done");
 });
 
+test("lists only active thread metadata in status priority order", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-meter-active-tasks-"));
+  const sessionsRoot = path.join(root, "sessions");
+  const hookStateRoot = path.join(root, "activity");
+  const dateDir = dateDirectory(sessionsRoot, NOW_MS);
+  fs.mkdirSync(dateDir, { recursive: true });
+  fs.mkdirSync(hookStateRoot, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(dateDir, "rollout-019f0000-0000-7000-8000-000000000001.jsonl"),
+    `${rolloutLine("task_started", "2026-07-10T02:23:05.016Z", "turn-working")}\n`,
+  );
+  fs.writeFileSync(
+    path.join(dateDir, "rollout-019f0000-0000-7000-8000-000000000003.jsonl"),
+    `${rolloutLine("task_complete", "2026-07-10T02:23:06.016Z", "turn-done")}\n`,
+  );
+  fs.writeFileSync(
+    path.join(hookStateRoot, "waiting.json"),
+    JSON.stringify({
+      threadId: "019f0000-0000-7000-8000-000000000002",
+      status: "waiting",
+      updatedAtMs: Date.parse("2026-07-10T02:23:04.016Z"),
+    }),
+  );
+
+  const monitor = new ActivityMonitor({
+    sessionsRoot,
+    hookStateRoot,
+    hooksConfigPath: path.join(root, "hooks.json"),
+    now: () => NOW_MS,
+  });
+
+  assert.deepEqual(monitor.activeTasks(), [
+    {
+      threadId: "019f0000-0000-7000-8000-000000000002",
+      status: "waiting",
+      updatedAtMs: Date.parse("2026-07-10T02:23:04.016Z"),
+    },
+    {
+      threadId: "019f0000-0000-7000-8000-000000000001",
+      status: "working",
+      updatedAtMs: Date.parse("2026-07-10T02:23:05.016Z"),
+    },
+  ]);
+});
+
 test("detects an installed Codex Meter hook without exposing hook commands", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-meter-hooks-"));
   const hooksConfigPath = path.join(root, "hooks.json");

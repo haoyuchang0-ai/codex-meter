@@ -214,6 +214,28 @@ test("small window reuses the dynamic activity capsule", () => {
   assert.match(source, /let\s+stack\s*=\s*NSStackView\(views:\s*\[activityStatusCapsule,\s*quotaCapsuleLabel\]\)/);
   assert.match(source, /stack\.spacing\s*=\s*4/);
   assert.doesNotMatch(source, /dotCapsuleLabel/);
+  assert.match(source, /NSGestureRecognizerDelegate/);
+  assert.match(source, /shouldAttemptToRecognizeWith\s+event:\s*NSEvent/);
+  assert.match(source, /expandGestureRecognizer\.delegate\s*=\s*self/);
+});
+
+test("activity capsule opens a compact task menu with Codex deep links", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /activityTasksEndpoint/);
+  assert.match(source, /final\s+class\s+ActivityTaskMenuPresenter/);
+  assert.match(source, /var\s+onClick:\s*\(\(\)\s*->\s*Void\)\?/);
+  assert.match(source, /NSClickGestureRecognizer\(target:\s*self,\s*action:\s*#selector\(capsuleClicked\)\)/);
+  assert.match(source, /NSCursor\.pointingHand/);
+  assert.match(source, /setAccessibilityElement\(true\)/);
+  assert.match(source, /override\s+func\s+accessibilityPerformPress\(\)\s*->\s*Bool/);
+  assert.match(source, /menu\.minimumWidth\s*=\s*236/);
+  assert.match(source, /NSMenuItem\.sectionHeader\(title:/);
+  assert.match(source, /进行中的任务/);
+  assert.match(source, /当前没有进行中的任务/);
+  assert.match(source, /codex:\/\/threads\//);
+  assert.match(source, /activityCapsule\.onClick/);
+  assert.match(source, /activityStatusCapsule\.onClick/);
 });
 
 test("native activity status polls independently from quota refresh", () => {

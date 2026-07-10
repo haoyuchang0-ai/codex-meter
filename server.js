@@ -5,6 +5,7 @@ const path = require("node:path");
 const { CodexAppServerClient } = require("./src/codex-app-server-client");
 const { normalizeRateLimitSnapshot } = require("./src/normalize");
 const { ActivityMonitor } = require("./src/activity-monitor");
+const { mergeActivityTasks } = require("./src/activity-tasks");
 
 const PORT = Number(process.env.PORT || 5487);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -70,13 +71,63 @@ async function readRateLimits() {
   };
 }
 
+async function readActivityTasks(options = {}) {
+  const monitor = options.monitor || activityMonitor;
+  const appServerClient = options.appServerClient || client;
+  const activeStates = monitor.activeTasks();
+  const pendingThreadIds = new Set(activeStates.map((state) => state.threadId));
+  const seenCursors = new Set();
+  const threads = [];
+  let cursor = null;
+
+  while (pendingThreadIds.size > 0) {
+    const result = await appServerClient.request("thread/list", {
+      cursor,
+      limit: 200,
+      archived: false,
+      parentThreadId: null,
+      sortKey: "updated_at",
+      sortDirection: "desc",
+      useStateDbOnly: true,
+    });
+    const page = Array.isArray(result?.data) ? result.data : [];
+    threads.push(...page);
+    for (const thread of page) pendingThreadIds.delete(thread.id);
+
+    const nextCursor = result?.nextCursor;
+    if (typeof nextCursor !== "string" || !nextCursor || seenCursors.has(nextCursor)) break;
+    seenCursors.add(nextCursor);
+    cursor = nextCursor;
+  }
+
+  return {
+    fetchedAt: new Date().toISOString(),
+    source: "local",
+    tasks: mergeActivityTasks({ activeStates, threads }),
+  };
+}
+
 function createRequestHandler(options = {}) {
   const rateLimitReader = options.rateLimitReader || readRateLimits;
   const activityReader = options.activityReader || (() => activityMonitor.snapshot());
+  const activityTasksReader = options.activityTasksReader || readActivityTasks;
 
   return async function requestHandler(req, res) {
     if (req.url === "/api/health") {
       sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    if (req.url === "/api/activity/tasks") {
+      try {
+        sendJson(res, 200, await activityTasksReader());
+      } catch {
+        sendJson(res, 503, {
+          ok: false,
+          error: "Activity tasks unavailable",
+          fetchedAt: new Date().toISOString(),
+        });
+      }
       return;
     }
 
@@ -132,4 +183,4 @@ if (require.main === module) {
   process.on("SIGTERM", shutdown);
 }
 
-module.exports = { createRequestHandler, readRateLimits };
+module.exports = { createRequestHandler, readActivityTasks, readRateLimits };

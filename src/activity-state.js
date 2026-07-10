@@ -32,7 +32,7 @@ function parseRolloutText(text, threadId) {
   return events;
 }
 
-function aggregateActivity({ rolloutEvents = [], hookStates = [], nowMs = Date.now() }) {
+function resolveThreadStates({ rolloutEvents = [], hookStates = [], nowMs = Date.now() }) {
   const turns = new Map();
   for (const event of [...rolloutEvents].sort((a, b) => a.updatedAtMs - b.updatedAtMs)) {
     const turnKey = JSON.stringify([event.threadId, event.turnId]);
@@ -47,7 +47,11 @@ function aggregateActivity({ rolloutEvents = [], hookStates = [], nowMs = Date.n
     latestByThread.set(candidate.threadId, candidate);
   }
 
-  const threadStates = [...latestByThread.values()];
+  return [...latestByThread.values()].sort((a, b) => a.updatedAtMs - b.updatedAtMs);
+}
+
+function aggregateActivity({ rolloutEvents = [], hookStates = [], nowMs = Date.now() }) {
+  const threadStates = resolveThreadStates({ rolloutEvents, hookStates, nowMs });
   const waitingThreads = new Set(
     threadStates.filter((state) => state.status === "waiting").map((state) => state.threadId),
   );
@@ -84,4 +88,5 @@ module.exports = {
   STALE_ACTIVITY_MS,
   aggregateActivity,
   parseRolloutText,
+  resolveThreadStates,
 };

@@ -6,6 +6,7 @@ private let activityRefreshInterval: TimeInterval = 1
 private let activityFailureGraceInterval: TimeInterval = 10
 private let quotaEndpoint = URL(string: "http://127.0.0.1:5487/api/rate-limits")!
 private let activityEndpoint = URL(string: "http://127.0.0.1:5487/api/activity")!
+private let activityTasksEndpoint = URL(string: "http://127.0.0.1:5487/api/activity/tasks")!
 private let expandedWindowSize = NSSize(width: 312, height: 184)
 private let capsuleWindowSize = NSSize(width: 156, height: 44)
 
@@ -178,6 +179,7 @@ final class ActivityCapsuleView: NSView {
     private let waveformView = ActivityWaveformView()
     private let textLabel = NSTextField(labelWithString: ActivityStatus.idle.label)
     private var currentStatus: ActivityStatus?
+    var onClick: (() -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -186,6 +188,9 @@ final class ActivityCapsuleView: NSView {
         layer?.cornerCurve = .continuous
         layer?.masksToBounds = false
         layer?.borderWidth = 0.5
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(capsuleClicked)))
 
         iconView.imageScaling = .scaleProportionallyDown
         iconView.translatesAutoresizingMaskIntoConstraints = false
@@ -224,6 +229,19 @@ final class ActivityCapsuleView: NSView {
         nil
     }
 
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: NSCursor.pointingHand)
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        onClick?()
+        return true
+    }
+
+    @objc private func capsuleClicked() {
+        onClick?()
+    }
+
     func update(status: ActivityStatus, animated: Bool = true) {
         guard currentStatus != status else { return }
         let hadStatus = currentStatus != nil
@@ -253,8 +271,9 @@ final class ActivityCapsuleView: NSView {
                 status == .idle ? 0.08 : 0.13
             ).cgColor
             self.layer?.borderColor = status.color.withAlphaComponent(0.22).cgColor
-            self.setAccessibilityLabel(status.menuTitle)
-            self.toolTip = status.menuTitle
+            let actionLabel = "\(status.menuTitle)，点击查看进行中的任务"
+            self.setAccessibilityLabel(actionLabel)
+            self.toolTip = actionLabel
         }
 
         guard animated, hadStatus, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
@@ -283,6 +302,99 @@ final class ActivityCapsuleView: NSView {
             waveformView.animator().alphaValue = 1
             textLabel.animator().alphaValue = 1
         }
+    }
+}
+
+final class ActivityTaskMenuPresenter: NSObject {
+    static let shared = ActivityTaskMenuPresenter()
+
+    private var isLoading = false
+
+    func present(from anchorView: NSView) {
+        guard !isLoading else { return }
+        isLoading = true
+
+        var request = URLRequest(url: activityTasksEndpoint)
+        request.timeoutInterval = 3
+        URLSession.shared.dataTask(with: request) { [weak self, weak anchorView] data, _, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isLoading = false
+                guard let anchorView, anchorView.window != nil else { return }
+
+                guard error == nil,
+                      let data,
+                      let snapshot = try? JSONDecoder().decode(ActivityTaskListSnapshot.self, from: data) else {
+                    self.showMessage("暂时无法读取任务列表", from: anchorView)
+                    return
+                }
+                self.showMenu(tasks: snapshot.tasks, from: anchorView)
+            }
+        }.resume()
+    }
+
+    private func showMenu(tasks: [ActivityTask], from anchorView: NSView) {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.minimumWidth = 236
+
+        let headerTitle = "进行中的任务 · \(tasks.count)"
+        if #available(macOS 14.0, *) {
+            menu.addItem(NSMenuItem.sectionHeader(title: headerTitle))
+        } else {
+            let header = NSMenuItem(title: headerTitle, action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            menu.addItem(header)
+            menu.addItem(.separator())
+        }
+
+        if tasks.isEmpty {
+            let emptyItem = NSMenuItem(title: "当前没有进行中的任务", action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            menu.addItem(emptyItem)
+        } else {
+            for task in tasks {
+                let statusLabel = task.status == "waiting" ? "待确认" : "工作中"
+                let symbolName = task.status == "waiting"
+                    ? "exclamationmark.triangle.fill"
+                    : "waveform.path"
+                let item = NSMenuItem(
+                    title: "\(shortTitle(task.title))  ·  \(statusLabel)",
+                    action: #selector(openTask(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = task.threadId
+                item.toolTip = "在 Codex 中打开"
+                item.image = NSImage(
+                    systemSymbolName: symbolName,
+                    accessibilityDescription: statusLabel
+                )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .medium))
+                menu.addItem(item)
+            }
+        }
+
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: -5), in: anchorView)
+    }
+
+    private func showMessage(_ message: String, from anchorView: NSView) {
+        let menu = NSMenu()
+        menu.minimumWidth = 236
+        let item = NSMenuItem(title: message, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        menu.addItem(item)
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: -5), in: anchorView)
+    }
+
+    private func shortTitle(_ title: String) -> String {
+        guard title.count > 30 else { return title }
+        return "\(title.prefix(29))…"
+    }
+
+    @objc private func openTask(_ sender: NSMenuItem) {
+        guard let threadId = sender.representedObject as? String,
+              let url = URL(string: "codex://threads/\(threadId)") else { return }
+        NSWorkspace.shared.open(url)
     }
 }
 
@@ -642,12 +754,16 @@ final class CircularGaugeView: NSView {
     }
 }
 
-final class CapsuleViewController: NSViewController {
+final class CapsuleViewController: NSViewController, NSGestureRecognizerDelegate {
     private let activityStatusCapsule = ActivityCapsuleView()
     private let quotaCapsuleLabel = NSTextField(labelWithString: "--/--")
     private var currentActivityStatus: ActivityStatus = .idle
     private var primaryWindow: QuotaWindow?
     private var secondaryWindow: QuotaWindow?
+    private lazy var expandGestureRecognizer = NSClickGestureRecognizer(
+        target: self,
+        action: #selector(capsuleClicked(_:))
+    )
     var onOpenRequested: (() -> Void)?
 
     override func loadView() {
@@ -674,8 +790,14 @@ final class CapsuleViewController: NSViewController {
         stack.spacing = 4
         stack.translatesAutoresizingMaskIntoConstraints = false
 
+        activityStatusCapsule.onClick = { [weak self] in
+            guard let self else { return }
+            ActivityTaskMenuPresenter.shared.present(from: self.activityStatusCapsule)
+        }
+
         view.addSubview(stack)
-        view.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(capsuleClicked)))
+        expandGestureRecognizer.delegate = self
+        view.addGestureRecognizer(expandGestureRecognizer)
 
         NSLayoutConstraint.activate([
             quotaCapsuleLabel.widthAnchor.constraint(equalToConstant: 52),
@@ -721,7 +843,19 @@ final class CapsuleViewController: NSViewController {
         view.setAccessibilityLabel("Codex 额度胶囊窗口，\(tooltip)")
     }
 
-    @objc private func capsuleClicked() {
+    func gestureRecognizer(
+        _ gestureRecognizer: NSGestureRecognizer,
+        shouldAttemptToRecognizeWith event: NSEvent
+    ) -> Bool {
+        guard gestureRecognizer === expandGestureRecognizer else { return true }
+        let location = view.convert(event.locationInWindow, from: nil)
+        let statusFrame = view.convert(activityStatusCapsule.bounds, from: activityStatusCapsule)
+        return !statusFrame.contains(location)
+    }
+
+    @objc private func capsuleClicked(_ recognizer: NSClickGestureRecognizer) {
+        let statusFrame = view.convert(activityStatusCapsule.bounds, from: activityStatusCapsule)
+        guard !statusFrame.contains(recognizer.location(in: view)) else { return }
         onOpenRequested?()
     }
 }
@@ -783,6 +917,10 @@ final class QuotaViewController: NSViewController {
         configureIconButton(gaugeButton, symbolName: "gauge.medium", toolTip: "切换条形/圆形仪表盘", action: #selector(gaugeButtonPressed))
         configureIconButton(colorButton, symbolName: "paintpalette", toolTip: "切换颜色风格", action: #selector(colorButtonPressed))
         configureIconButton(refreshButton, symbolName: "arrow.clockwise", toolTip: "刷新", action: #selector(refreshButtonPressed))
+        activityCapsule.onClick = { [weak self] in
+            guard let self else { return }
+            ActivityTaskMenuPresenter.shared.present(from: self.activityCapsule)
+        }
 
         let header = NSView()
         header.translatesAutoresizingMaskIntoConstraints = false

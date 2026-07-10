@@ -2,7 +2,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { aggregateActivity, parseRolloutText } = require("./activity-state");
+const { aggregateActivity, parseRolloutText, resolveThreadStates } = require("./activity-state");
 
 const RECENT_FILE_MS = 48 * 60 * 60 * 1_000;
 const THREAD_ID_PATTERN = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
@@ -190,6 +190,21 @@ class ActivityMonitor {
       config.hooks === null || typeof config.hooks !== "object" || Array.isArray(config.hooks)
     ) return false;
     return containsMeterHookCommand(config.hooks);
+  }
+
+  activeTasks() {
+    const states = resolveThreadStates({
+      rolloutEvents: this.readRolloutEvents(),
+      hookStates: this.readHookStates(),
+      nowMs: this.now(),
+    });
+    return states
+      .filter((state) => state.status === "waiting" || state.status === "working")
+      .map(({ threadId, status, updatedAtMs }) => ({ threadId, status, updatedAtMs }))
+      .sort((a, b) => {
+        if (a.status !== b.status) return a.status === "waiting" ? -1 : 1;
+        return b.updatedAtMs - a.updatedAtMs;
+      });
   }
 
   snapshot() {

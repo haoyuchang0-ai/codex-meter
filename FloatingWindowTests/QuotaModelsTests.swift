@@ -5,6 +5,29 @@ struct QuotaModelsTests {
     static func main() throws {
         try parsesRateLimitResponse()
         try parsesActivityResponse()
+        try parsesActivityTaskListResponse()
+    }
+
+    private static func parsesActivityTaskListResponse() throws {
+        let json = """
+        {
+          "fetchedAt": "2026-07-10T02:23:05.016Z",
+          "source": "local",
+          "tasks": [
+            {
+              "threadId": "019f0000-0000-7000-8000-000000000001",
+              "title": "Quota window polish",
+              "status": "working",
+              "updatedAt": "2026-07-10T02:23:04.016Z"
+            }
+          ]
+        }
+        """
+        let snapshot = try JSONDecoder().decode(ActivityTaskListSnapshot.self, from: Data(json.utf8))
+        assertEqual(snapshot.tasks.count, 1)
+        assertEqual(snapshot.tasks[0].threadId, "019f0000-0000-7000-8000-000000000001")
+        assertEqual(snapshot.tasks[0].title, "Quota window polish")
+        assertEqual(snapshot.tasks[0].status, "working")
     }
 
     private static func parsesActivityResponse() throws {

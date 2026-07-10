@@ -14,6 +14,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 - 支持条形视图、圆形仪表盘视图和两套颜色风格。
 - 支持胶囊模式和菜单栏隐藏，隐藏后可从 macOS 菜单栏恢复。
 - 使用动态状态胶囊显示所有本地 Codex 任务的待确认、工作中、已完成和空闲状态。
+- 点击状态胶囊可查看当前待确认或工作中的顶层任务，点击任务即可跳转到 Codex。
 - 保留本地网页调试入口。
 
 ## 使用方式
@@ -21,6 +22,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 - 点击窗口右上角的收起按钮进入胶囊模式；点击胶囊可恢复完整窗口。
 - 在 macOS 菜单栏的 Codex Meter 图标中，可以显示窗口、收起为胶囊、隐藏到菜单栏、手动刷新、切换风格或退出。
 - 状态提示会显示在完整窗口左上角、胶囊模式和菜单栏；尺寸保持紧凑，不改变窗口大小。
+- 点击完整窗口或胶囊模式中的状态提示，会弹出当前任务列表；选择任务后在 Codex 中打开。
 - 关闭窗口不会退出应用，而是隐藏到菜单栏，避免隐藏后找不到。
 
 ## Usage
@@ -28,6 +30,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 - Click the shrink button in the floating window to enter Capsule mode; click the capsule to restore the full window.
 - Use the macOS menu bar icon to show the window, collapse to capsule, hide to the menu bar, refresh manually, switch styles, or quit.
 - A dynamic status capsule shows aggregate activity across local Codex tasks in the full window and Capsule mode: Waiting, Working, Done, and Idle.
+- Click the activity capsule to list active top-level tasks, then select one to open it in Codex.
 - Quota progress changes from blue to amber and red as remaining capacity decreases.
 - Closing the window hides it to the menu bar instead of quitting, so the app remains easy to recover.
 
@@ -125,8 +128,8 @@ Project structure:
 
 这个工具读取 Codex app-server 的账户额度状态和本地任务事件，不会主动创建 Codex 对话，也不发送模型请求，因此状态轮询本身不消耗 Codex 额度。
 
-Hook 状态文件只包含会话 ID、状态和更新时间。工具不记录提示词、回复、工具参数、工作路径或任务标题；所有数据都保留在本机。
+Hook 状态文件只包含会话 ID、状态和更新时间。工具不记录提示词、回复、工具参数、工作路径或任务标题。任务标题仅在点击状态胶囊时从本地 Codex 按需读取，不会持久化；所有数据都保留在本机。
 
 This tool reads Codex app-server quota data and local task events. It does not create Codex conversations or send model requests, so activity polling does not consume Codex quota.
 
-Hook state files contain only a session ID, status, and timestamp. Prompts, replies, tool arguments, working paths, and task titles are not recorded; all data stays local.
+Hook state files contain only a session ID, status, and timestamp. Prompts, replies, tool arguments, working paths, and task titles are not recorded. Titles are read on demand from local Codex only when the activity capsule is clicked and are never persisted; all data stays local.

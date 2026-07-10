@@ -91,3 +91,17 @@ test("launcher keeps the local quota service alive after launch", () => {
   assert.match(launcher, /echo\s+\$!\s+>\s+"\$PID_FILE"/);
   assert.match(launcher, /disown/);
 });
+
+test("native build signs the complete app bundle after replacing its executable", () => {
+  const buildScript = read("scripts/build-floating-window.sh");
+
+  assert.match(buildScript, /codesign\s+--force\s+--deep\s+--sign\s+-\s+"\$APP_DIR"/);
+});
+
+test("native build retries the compatible Command Line Tools SDK", () => {
+  const buildScript = read("scripts/build-floating-window.sh");
+
+  assert.match(buildScript, /FALLBACK_SDK=.*MacOSX15\.4\.sdk/);
+  assert.match(buildScript, /if\s+!\s+swiftc\s+-sdk\s+"\$SDK_PATH"/);
+  assert.match(buildScript, /swiftc\s+-sdk\s+"\$FALLBACK_SDK"/);
+});

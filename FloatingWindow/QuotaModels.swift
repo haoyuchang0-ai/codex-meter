@@ -27,3 +27,16 @@ struct ActivitySnapshot: Decodable {
     let source: String?
     let hooksInstalled: Bool
 }
+
+struct ActivityTaskListSnapshot: Decodable {
+    let fetchedAt: String?
+    let source: String?
+    let tasks: [ActivityTask]
+}
+
+struct ActivityTask: Decodable {
+    let threadId: String
+    let title: String
+    let status: String
+    let updatedAt: String?
+}

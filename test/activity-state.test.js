@@ -6,6 +6,7 @@ const {
   STALE_ACTIVITY_MS,
   aggregateActivity,
   parseRolloutText,
+  resolveThreadStates,
 } = require("../src/activity-state");
 
 test("parses only task lifecycle fields and skips malformed JSONL", () => {
@@ -193,4 +194,24 @@ test("newer completion overrides an older waiting hook in the same thread", () =
 
   assert.equal(snapshot.status, "done");
   assert.equal(snapshot.waitingCount, 0);
+});
+
+test("resolves the latest non-stale state for each thread", () => {
+  const nowMs = Date.parse("2026-07-10T02:23:15.000Z");
+  const states = resolveThreadStates({
+    rolloutEvents: [
+      { threadId: "thread-1", turnId: "turn-1", status: "working", updatedAtMs: nowMs - 3_000 },
+      { threadId: "thread-2", turnId: "turn-2", status: "working", updatedAtMs: nowMs - 2_000 },
+    ],
+    hookStates: [
+      { threadId: "thread-1", status: "waiting", updatedAtMs: nowMs - 1_000 },
+      { threadId: "thread-stale", status: "working", updatedAtMs: nowMs - STALE_ACTIVITY_MS - 1 },
+    ],
+    nowMs,
+  });
+
+  assert.deepEqual(states, [
+    { threadId: "thread-2", turnId: "turn-2", status: "working", updatedAtMs: nowMs - 2_000 },
+    { threadId: "thread-1", status: "waiting", updatedAtMs: nowMs - 1_000 },
+  ]);
 });
