@@ -21,16 +21,42 @@ function groupFor(matcher, status) {
   return group;
 }
 
+function isPlainObject(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function matcherMatches(group, matcher) {
+  return matcher === null
+    ? !Object.prototype.hasOwnProperty.call(group, "matcher")
+    : group.matcher === matcher;
+}
+
+function containsIntegration(group, matcher, command) {
+  return isPlainObject(group) && matcherMatches(group, matcher) &&
+    Array.isArray(group.hooks) && group.hooks.some((hook) => (
+      isPlainObject(hook) && hook.type === "command" && hook.command === command
+    ));
+}
+
 function installActivityHooks({ codexHome, sourceScript, now = Date.now }) {
   const hooksDir = path.join(codexHome, "hooks");
   const configPath = path.join(codexHome, "hooks.json");
-  fs.mkdirSync(hooksDir, { recursive: true });
-  fs.copyFileSync(sourceScript, path.join(hooksDir, "codex-meter-state.py"));
-
-  const config = fs.existsSync(configPath)
+  const configExists = fs.existsSync(configPath);
+  const config = configExists
     ? JSON.parse(fs.readFileSync(configPath, "utf8"))
     : { hooks: {} };
-  config.hooks = config.hooks || {};
+  if (!isPlainObject(config)) {
+    throw new TypeError("hooks.json root must be a plain object");
+  }
+  if (Object.prototype.hasOwnProperty.call(config, "hooks")) {
+    if (!isPlainObject(config.hooks)) {
+      throw new TypeError("hooks.json hooks must be a plain object");
+    }
+  } else {
+    config.hooks = {};
+  }
 
   let changed = false;
   for (const [event, matcher, status] of HOOKS) {
@@ -38,7 +64,7 @@ function installActivityHooks({ codexHome, sourceScript, now = Date.now }) {
     const desiredGroup = groupFor(matcher, status);
     const desiredCommand = desiredGroup.hooks[0].command;
     const alreadyInstalled = config.hooks[event].some((group) => (
-      Array.isArray(group.hooks) && group.hooks.some((hook) => hook.command === desiredCommand)
+      containsIntegration(group, matcher, desiredCommand)
     ));
     if (!alreadyInstalled) {
       config.hooks[event].push(desiredGroup);
@@ -46,8 +72,11 @@ function installActivityHooks({ codexHome, sourceScript, now = Date.now }) {
     }
   }
 
+  fs.mkdirSync(hooksDir, { recursive: true });
+  fs.copyFileSync(sourceScript, path.join(hooksDir, "codex-meter-state.py"));
+
   let backupPath = null;
-  if (changed && fs.existsSync(configPath)) {
+  if (changed && configExists) {
     backupPath = `${configPath}.codex-meter-backup-${now()}`;
     fs.copyFileSync(configPath, backupPath);
   }
