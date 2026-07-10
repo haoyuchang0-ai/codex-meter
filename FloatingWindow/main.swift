@@ -9,6 +9,16 @@ private let activityEndpoint = URL(string: "http://127.0.0.1:5487/api/activity")
 private let expandedWindowSize = NSSize(width: 312, height: 184)
 private let capsuleWindowSize = NSSize(width: 156, height: 44)
 
+private func quotaFillColor(for remainingPercent: Int) -> NSColor {
+    if remainingPercent < 20 {
+        return NSColor(calibratedRed: 0.88, green: 0.30, blue: 0.31, alpha: 1)
+    }
+    if remainingPercent < 50 {
+        return NSColor(calibratedRed: 0.92, green: 0.62, blue: 0.16, alpha: 1)
+    }
+    return NSColor(calibratedRed: 0.31, green: 0.62, blue: 0.86, alpha: 1)
+}
+
 enum QuotaVisualStyle {
     case creamBlue
     case minimalistDashboard
@@ -397,6 +407,7 @@ final class CompactMeterRow: NSView {
     private let valueLabel = NSTextField(labelWithString: "--%")
     private let resetLabel = NSTextField(labelWithString: "--")
     private let barView = MeterBarView()
+    private var remainingPercent: Int?
 
     init(name: String, accessibilityLabel: String) {
         super.init(frame: .zero)
@@ -454,6 +465,7 @@ final class CompactMeterRow: NSView {
 
     func update(with window: QuotaWindow?) {
         guard let window, window.status == "ok" else {
+            remainingPercent = nil
             valueLabel.stringValue = "--%"
             resetLabel.stringValue = "--"
             barView.fraction = 0
@@ -461,9 +473,11 @@ final class CompactMeterRow: NSView {
         }
 
         let remaining = window.remainingPercent ?? 0
+        remainingPercent = remaining
         valueLabel.stringValue = "\(remaining)%"
         resetLabel.stringValue = formatReset(window.resetsAtEpochSeconds)
         barView.fraction = CGFloat(remaining) / 100
+        barView.fillColor = quotaFillColor(for: remaining)
         toolTip = "已用 \(window.usedPercent ?? 0)%，重置 \(resetLabel.stringValue)"
     }
 
@@ -486,7 +500,6 @@ final class CompactMeterRow: NSView {
             valueLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
             resetLabel.textColor = NSColor(calibratedRed: 0.42, green: 0.48, blue: 0.55, alpha: 1)
             barView.trackColor = NSColor(calibratedRed: 0.90, green: 0.94, blue: 0.98, alpha: 1)
-            barView.fillColor = NSColor(calibratedRed: 0.31, green: 0.62, blue: 0.86, alpha: 1)
         case .minimalistDashboard:
             layer?.backgroundColor = NSColor.white.withAlphaComponent(0.78).cgColor
             layer?.borderColor = NSColor(calibratedRed: 0.82, green: 0.84, blue: 0.87, alpha: 0.9).cgColor
@@ -494,7 +507,9 @@ final class CompactMeterRow: NSView {
             valueLabel.textColor = NSColor(calibratedWhite: 0.08, alpha: 1)
             resetLabel.textColor = NSColor(calibratedWhite: 0.42, alpha: 1)
             barView.trackColor = NSColor(calibratedWhite: 0.90, alpha: 1)
-            barView.fillColor = NSColor(calibratedRed: 0.16, green: 0.62, blue: 0.39, alpha: 1)
+        }
+        if let remainingPercent {
+            barView.fillColor = quotaFillColor(for: remainingPercent)
         }
     }
 }
@@ -507,6 +522,7 @@ final class CircularGaugeView: NSView {
     private var fraction: CGFloat = 0
     private var trackColor = NSColor(calibratedWhite: 0.88, alpha: 1)
     private var fillColor = NSColor(calibratedRed: 0.31, green: 0.62, blue: 0.86, alpha: 1)
+    private var remainingPercent: Int?
 
     init(caption: String, accessibilityLabel: String) {
         super.init(frame: .zero)
@@ -562,6 +578,7 @@ final class CircularGaugeView: NSView {
 
     func update(with window: QuotaWindow?) {
         guard let window, window.status == "ok" else {
+            remainingPercent = nil
             fraction = 0
             valueLabel.stringValue = "--%"
             resetLabel.stringValue = "--"
@@ -570,7 +587,9 @@ final class CircularGaugeView: NSView {
         }
 
         let remaining = window.remainingPercent ?? 0
+        remainingPercent = remaining
         fraction = CGFloat(max(0, min(100, remaining))) / 100
+        fillColor = quotaFillColor(for: remaining)
         valueLabel.stringValue = "\(remaining)%"
         resetLabel.stringValue = formatReset(window.resetsAtEpochSeconds)
         toolTip = "已用 \(window.usedPercent ?? 0)%，重置 \(resetLabel.stringValue)"
@@ -586,7 +605,6 @@ final class CircularGaugeView: NSView {
             valueLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
             resetLabel.textColor = NSColor(calibratedRed: 0.42, green: 0.48, blue: 0.55, alpha: 1)
             trackColor = NSColor(calibratedRed: 0.88, green: 0.94, blue: 0.99, alpha: 1)
-            fillColor = NSColor(calibratedRed: 0.31, green: 0.62, blue: 0.86, alpha: 1)
         case .minimalistDashboard:
             layer?.backgroundColor = NSColor.white.withAlphaComponent(0.78).cgColor
             layer?.borderColor = NSColor(calibratedRed: 0.82, green: 0.84, blue: 0.87, alpha: 0.72).cgColor
@@ -594,7 +612,9 @@ final class CircularGaugeView: NSView {
             valueLabel.textColor = NSColor(calibratedWhite: 0.08, alpha: 1)
             resetLabel.textColor = NSColor(calibratedWhite: 0.42, alpha: 1)
             trackColor = NSColor(calibratedWhite: 0.88, alpha: 1)
-            fillColor = NSColor(calibratedRed: 0.16, green: 0.62, blue: 0.39, alpha: 1)
+        }
+        if let remainingPercent {
+            fillColor = quotaFillColor(for: remainingPercent)
         }
         needsDisplay = true
     }

@@ -8,6 +8,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 
 - 原生 macOS 悬浮窗，常驻桌面，可拖动。
 - 显示主额度和周额度的剩余百分比。
+- 额度进度根据剩余比例显示蓝色、琥珀色或红色预警。
 - 显示每个额度窗口的重置时间。
 - 默认每 60 秒自动刷新，也支持手动刷新。
 - 支持条形视图、圆形仪表盘视图和两套颜色风格。
@@ -27,6 +28,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 - Click the shrink button in the floating window to enter Capsule mode; click the capsule to restore the full window.
 - Use the macOS menu bar icon to show the window, collapse to capsule, hide to the menu bar, refresh manually, switch styles, or quit.
 - A dynamic status capsule shows aggregate activity across local Codex tasks in the full window and Capsule mode: Waiting, Working, Done, and Idle.
+- Quota progress changes from blue to amber and red as remaining capacity decreases.
 - Closing the window hides it to the menu bar instead of quitting, so the app remains easy to recover.
 
 ## Quick Start

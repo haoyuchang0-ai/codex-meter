@@ -64,6 +64,20 @@ test("native floating window has a circular dashboard gauge mode", () => {
   assert.match(source, /gaugeButtonPressed/);
 });
 
+test("quota progress colors reflect remaining percentage in both views", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /func\s+quotaFillColor\(for\s+remainingPercent:\s*Int\)/);
+  assert.match(source, /if\s+remainingPercent\s*<\s*20/);
+  assert.match(source, /if\s+remainingPercent\s*<\s*50/);
+  assert.match(source, /calibratedRed:\s*0\.88,\s*green:\s*0\.30,\s*blue:\s*0\.31/);
+  assert.match(source, /calibratedRed:\s*0\.92,\s*green:\s*0\.62,\s*blue:\s*0\.16/);
+  assert.match(source, /calibratedRed:\s*0\.31,\s*green:\s*0\.62,\s*blue:\s*0\.86/);
+  assert.match(source, /barView\.fillColor\s*=\s*quotaFillColor\(for:\s*remaining\)/);
+  assert.match(source, /fillColor\s*=\s*quotaFillColor\(for:\s*remaining\)/);
+  assert.doesNotMatch(source, /barView\.fillColor\s*=\s*NSColor\(calibratedRed:\s*0\.16,\s*green:\s*0\.62/);
+});
+
 test("native floating window uses understandable quota labels instead of P and S", () => {
   const source = readMainSwift();
 
