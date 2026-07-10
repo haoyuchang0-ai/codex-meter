@@ -135,6 +135,37 @@ test("rebuilds cached events after a same-size rollout rotation", () => {
   assert.equal(monitor.snapshot().status, "done");
 });
 
+test("rebuilds cached events after a same-size in-place rollout rewrite", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-meter-rewrite-"));
+  const sessionsRoot = path.join(root, "sessions");
+  const rolloutPath = rolloutPathIn(sessionsRoot);
+  const started = rolloutLine("task_started", "2026-07-10T02:23:05.016Z");
+  const completed = `${rolloutLine("task_complete", "2026-07-10T02:23:06.016Z")}\n`;
+  const startedPadded = `${started}${" ".repeat(completed.length - started.length - 1)}\n`;
+  fs.writeFileSync(rolloutPath, startedPadded);
+  const initialTime = new Date(NOW_MS - 2_000);
+  fs.utimesSync(rolloutPath, initialTime, initialTime);
+
+  const fsImpl = Object.create(fs);
+  fsImpl.statSync = (filePath) => {
+    const stat = fs.statSync(filePath);
+    return { ino: stat.ino, size: stat.size, mtimeMs: stat.mtimeMs };
+  };
+  const monitor = new ActivityMonitor({ sessionsRoot, now: () => NOW_MS, fsImpl });
+  assert.equal(monitor.snapshot().status, "working");
+  const initialStat = fs.statSync(rolloutPath);
+
+  fs.writeFileSync(rolloutPath, completed);
+  const rewrittenTime = new Date(NOW_MS - 1_000);
+  fs.utimesSync(rolloutPath, rewrittenTime, rewrittenTime);
+  const rewrittenStat = fs.statSync(rolloutPath);
+  assert.equal(rewrittenStat.ino, initialStat.ino);
+  assert.equal(rewrittenStat.size, initialStat.size);
+  assert.notEqual(rewrittenStat.mtimeMs, initialStat.mtimeMs);
+
+  assert.equal(monitor.snapshot().status, "done");
+});
+
 test("enumerates only the three local date directories in the 48-hour window", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-meter-dates-"));
   const sessionsRoot = path.join(root, "sessions");
@@ -179,6 +210,32 @@ test("compacts cached rollout events to the latest event per thread and turn", (
   assert.equal(monitor.snapshot().status, "working");
   assert.equal(monitor.cache.get(rolloutPath).events.length, 1);
   assert.equal(monitor.cache.get(rolloutPath).events[0].status, "working");
+});
+
+test("globally compacts the latest thread and turn event across rollout files", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-meter-cross-file-"));
+  const sessionsRoot = path.join(root, "sessions");
+  const dateDir = dateDirectory(sessionsRoot, NOW_MS);
+  fs.mkdirSync(dateDir, { recursive: true });
+  const olderPath = path.join(dateDir, `rollout-${THREAD_ID}.jsonl`);
+  const newerPath = path.join(dateDir, `rollout-${THREAD_ID}-continued.jsonl`);
+  fs.writeFileSync(
+    olderPath,
+    `${rolloutLine("task_started", "2026-07-10T02:23:04.016Z", "shared-turn")}\n`,
+  );
+  fs.writeFileSync(
+    newerPath,
+    `${rolloutLine("task_complete", "2026-07-10T02:23:06.016Z", "shared-turn")}\n`,
+  );
+
+  const monitor = new ActivityMonitor({ sessionsRoot, now: () => NOW_MS });
+  assert.deepEqual(monitor.readRolloutEvents(), [{
+    threadId: THREAD_ID,
+    turnId: "shared-turn",
+    status: "done",
+    updatedAtMs: Date.parse("2026-07-10T02:23:06.016Z"),
+  }]);
+  assert.equal(monitor.cache.size, 2);
 });
 
 test("resets cached events when a rollout is truncated", () => {

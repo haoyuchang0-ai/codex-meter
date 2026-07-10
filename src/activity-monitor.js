@@ -68,6 +68,15 @@ function compactEvents(events) {
   return [...latestByTurn.values()];
 }
 
+function sameSizeMarkerChanged(cached, stat) {
+  if (!cached || cached.size !== stat.size) return false;
+  return ["mtimeMs", "ctimeMs"].some((field) => (
+    Number.isFinite(cached[field]) &&
+    Number.isFinite(stat[field]) &&
+    cached[field] !== stat[field]
+  ));
+}
+
 function containsMeterHookCommand(hooks) {
   return Object.values(hooks).some((groups) => (
     Array.isArray(groups) && groups.some((group) => (
@@ -112,11 +121,12 @@ class ActivityMonitor {
       const cached = this.cache.get(filePath);
       const fileIdentity = Number.isFinite(stat.ino) ? stat.ino : null;
       const rotated = cached && fileIdentity !== null && cached.fileIdentity !== fileIdentity;
-      if (!cached || cached.size !== stat.size || rotated) {
+      const rewritten = sameSizeMarkerChanged(cached, stat);
+      if (!cached || cached.size !== stat.size || rotated || rewritten) {
         const match = path.basename(filePath).match(THREAD_ID_PATTERN);
         if (!match) continue;
 
-        const reset = !cached || stat.size < cached.size || rotated;
+        const reset = !cached || stat.size < cached.size || rotated || rewritten;
         const offset = reset ? 0 : cached.offset;
         let chunk;
         try {
@@ -132,6 +142,8 @@ class ActivityMonitor {
         );
         this.cache.set(filePath, {
           fileIdentity,
+          mtimeMs: Number.isFinite(stat.mtimeMs) ? stat.mtimeMs : null,
+          ctimeMs: Number.isFinite(stat.ctimeMs) ? stat.ctimeMs : null,
           size: offset + chunk.length,
           offset: offset + completeLength,
           events: compactEvents([...(reset ? [] : cached.events), ...parsed]),
@@ -143,7 +155,7 @@ class ActivityMonitor {
     for (const filePath of this.cache.keys()) {
       if (!discovered.has(filePath)) this.cache.delete(filePath);
     }
-    return events;
+    return compactEvents(events);
   }
 
   readHookStates() {
