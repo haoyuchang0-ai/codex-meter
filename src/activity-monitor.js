@@ -15,36 +15,71 @@ function safeJson(filePath, fsImpl) {
   }
 }
 
-function walkJsonl(root, fsImpl) {
-  if (!fsImpl.existsSync(root)) return [];
+function localDateDirectories(root, nowMs) {
+  const directories = [];
+  for (let daysAgo = 0; daysAgo < 3; daysAgo += 1) {
+    const date = new Date(nowMs);
+    date.setDate(date.getDate() - daysAgo);
+    directories.push(path.join(
+      root,
+      String(date.getFullYear()).padStart(4, "0"),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0"),
+    ));
+  }
+  return directories;
+}
+
+function listJsonl(directory, fsImpl) {
+  if (!fsImpl.existsSync(directory)) return [];
 
   let entries;
   try {
-    entries = fsImpl.readdirSync(root, { withFileTypes: true });
+    entries = fsImpl.readdirSync(directory, { withFileTypes: true });
   } catch {
     return [];
   }
 
-  const files = [];
-  for (const entry of entries) {
-    const child = path.join(root, entry.name);
-    if (entry.isDirectory()) files.push(...walkJsonl(child, fsImpl));
-    else if (entry.isFile() && entry.name.endsWith(".jsonl")) files.push(child);
-  }
-  return files;
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".jsonl"))
+    .map((entry) => path.join(directory, entry.name));
 }
 
 function readRange(filePath, offset, length, fsImpl) {
-  if (length <= 0) return "";
+  if (length <= 0) return Buffer.alloc(0);
 
   const descriptor = fsImpl.openSync(filePath, "r");
   try {
     const buffer = Buffer.alloc(length);
     const bytesRead = fsImpl.readSync(descriptor, buffer, 0, length, offset);
-    return buffer.subarray(0, bytesRead).toString("utf8");
+    return buffer.subarray(0, bytesRead);
   } finally {
     fsImpl.closeSync(descriptor);
   }
+}
+
+function compactEvents(events) {
+  const latestByTurn = new Map();
+  for (const event of events) {
+    const key = JSON.stringify([event.threadId, event.turnId]);
+    const current = latestByTurn.get(key);
+    if (!current || event.updatedAtMs >= current.updatedAtMs) latestByTurn.set(key, event);
+  }
+  return [...latestByTurn.values()];
+}
+
+function containsMeterHookCommand(hooks) {
+  return Object.values(hooks).some((groups) => (
+    Array.isArray(groups) && groups.some((group) => (
+      group !== null && typeof group === "object" && Array.isArray(group.hooks) &&
+      group.hooks.some((entry) => (
+        entry !== null && typeof entry === "object" &&
+        entry.type === "command" &&
+        typeof entry.command === "string" &&
+        entry.command.includes("codex-meter-state.py")
+      ))
+    ))
+  ));
 }
 
 class ActivityMonitor {
@@ -61,14 +96,17 @@ class ActivityMonitor {
   readRolloutEvents() {
     const events = [];
     const discovered = new Set();
-    for (const filePath of walkJsonl(this.sessionsRoot, this.fs)) {
+    const nowMs = this.now();
+    const files = localDateDirectories(this.sessionsRoot, nowMs)
+      .flatMap((directory) => listJsonl(directory, this.fs));
+    for (const filePath of files) {
       let stat;
       try {
         stat = this.fs.statSync(filePath);
       } catch {
         continue;
       }
-      if (this.now() - stat.mtimeMs > RECENT_FILE_MS) continue;
+      if (nowMs - stat.mtimeMs > RECENT_FILE_MS) continue;
       discovered.add(filePath);
 
       const cached = this.cache.get(filePath);
@@ -79,22 +117,24 @@ class ActivityMonitor {
         if (!match) continue;
 
         const reset = !cached || stat.size < cached.size || rotated;
-        const offset = reset ? 0 : cached.size;
+        const offset = reset ? 0 : cached.offset;
         let chunk;
         try {
           chunk = readRange(filePath, offset, stat.size - offset, this.fs);
         } catch {
           continue;
         }
-        const combined = `${reset ? "" : cached.remainder}${chunk}`;
-        const lines = combined.split("\n");
-        const remainder = lines.pop() || "";
-        const parsed = parseRolloutText(lines.join("\n"), match[1]);
+        const finalNewline = chunk.lastIndexOf(0x0a);
+        const completeLength = finalNewline + 1;
+        const parsed = parseRolloutText(
+          chunk.subarray(0, completeLength).toString("utf8"),
+          match[1],
+        );
         this.cache.set(filePath, {
           fileIdentity,
-          size: stat.size,
-          remainder,
-          events: [...(reset ? [] : cached.events), ...parsed],
+          size: offset + chunk.length,
+          offset: offset + completeLength,
+          events: compactEvents([...(reset ? [] : cached.events), ...parsed]),
         });
       }
       events.push(...this.cache.get(filePath).events);
@@ -132,12 +172,12 @@ class ActivityMonitor {
   }
 
   hooksInstalled() {
-    if (!this.fs.existsSync(this.hooksConfigPath)) return false;
-    try {
-      return this.fs.readFileSync(this.hooksConfigPath, "utf8").includes("codex-meter-state.py");
-    } catch {
-      return false;
-    }
+    const config = safeJson(this.hooksConfigPath, this.fs);
+    if (
+      config === null || typeof config !== "object" || Array.isArray(config) ||
+      config.hooks === null || typeof config.hooks !== "object" || Array.isArray(config.hooks)
+    ) return false;
+    return containsMeterHookCommand(config.hooks);
   }
 
   snapshot() {
