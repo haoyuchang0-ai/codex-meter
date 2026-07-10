@@ -7,6 +7,7 @@
   "scripts": {
     "build:mac": "zsh scripts/build-floating-window.sh",
     "start": "node server.js",
+    "install:hooks": "node scripts/install-activity-hooks.js",
     "test": "node --test test/*.test.js"
   },
   "repository": {
