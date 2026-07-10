@@ -87,13 +87,13 @@ final class SignalLampView: NSView {
         semanticColor = color
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.cornerRadius = 4
+        layer?.cornerRadius = 6
         layer?.cornerCurve = .continuous
         layer?.masksToBounds = false
         layer?.shadowRadius = 6
         layer?.shadowOffset = .zero
         highlightLayer.backgroundColor = NSColor.white.cgColor
-        highlightLayer.cornerRadius = 1
+        highlightLayer.cornerRadius = 1.5
         highlightLayer.shadowColor = NSColor.white.cgColor
         highlightLayer.shadowOpacity = 0.8
         highlightLayer.shadowRadius = 1.5
@@ -101,8 +101,8 @@ final class SignalLampView: NSView {
         layer?.addSublayer(highlightLayer)
         translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: 8),
-            heightAnchor.constraint(equalToConstant: 8)
+            widthAnchor.constraint(equalToConstant: 12),
+            heightAnchor.constraint(equalToConstant: 12)
         ])
         setActive(false)
     }
@@ -114,12 +114,12 @@ final class SignalLampView: NSView {
     override func layout() {
         super.layout()
         layer?.shadowPath = CGPath(ellipseIn: bounds, transform: nil)
-        highlightLayer.frame = CGRect(x: 1.4, y: 4.6, width: 2, height: 2)
+        highlightLayer.frame = CGRect(x: 2, y: 7, width: 3, height: 3)
     }
 
     func setActive(_ active: Bool) {
         layer?.backgroundColor = semanticColor.withAlphaComponent(active ? 1 : 0.12).cgColor
-        layer?.borderWidth = 0.5
+        layer?.borderWidth = active ? 1 : 0.75
         layer?.borderColor = (active
             ? NSColor.white.withAlphaComponent(0.90)
             : semanticColor.withAlphaComponent(0.38)).cgColor
@@ -138,12 +138,12 @@ final class ActivitySignalView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.cornerRadius = 11
+        layer?.cornerRadius = 12
         layer?.cornerCurve = .continuous
         layer?.masksToBounds = false
         layer?.backgroundColor = NSColor.white.withAlphaComponent(0.44).cgColor
 
-        textLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+        textLabel.font = .systemFont(ofSize: 11, weight: .semibold)
         textLabel.textColor = NSColor(calibratedRed: 0.27, green: 0.36, blue: 0.46, alpha: 1)
         textLabel.alignment = .left
         textLabel.lineBreakMode = .byClipping
@@ -151,14 +151,14 @@ final class ActivitySignalView: NSView {
 
         let lamps = NSStackView(views: [redLamp, yellowLamp, greenLamp])
         lamps.orientation = .horizontal
-        lamps.spacing = 4
+        lamps.spacing = 3
         lamps.translatesAutoresizingMaskIntoConstraints = false
         addSubview(lamps)
         addSubview(textLabel)
 
         NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: 84),
-            heightAnchor.constraint(equalToConstant: 22),
+            widthAnchor.constraint(equalToConstant: 96),
+            heightAnchor.constraint(equalToConstant: 24),
             lamps.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 7),
             lamps.centerYAnchor.constraint(equalTo: centerYAnchor),
             textLabel.leadingAnchor.constraint(equalTo: lamps.trailingAnchor, constant: 5),
@@ -179,7 +179,7 @@ final class ActivitySignalView: NSView {
             self.yellowLamp.setActive(status == .working)
             self.greenLamp.setActive(status == .done)
             self.textLabel.font = .systemFont(
-                ofSize: status == .unknown ? 8.5 : 10,
+                ofSize: status == .unknown ? 9 : 11,
                 weight: .semibold
             )
             self.textLabel.stringValue = status.label
@@ -574,7 +574,7 @@ final class CapsuleViewController: NSViewController {
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.distribution = .gravityAreas
-        stack.spacing = 6
+        stack.spacing = 4
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         view.addSubview(stack)

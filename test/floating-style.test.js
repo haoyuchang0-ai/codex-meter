@@ -165,12 +165,12 @@ test("native activity signal uses three persistent lamps without layout shift", 
   assert.match(source, /redLamp/);
   assert.match(source, /yellowLamp/);
   assert.match(source, /greenLamp/);
-  assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*84\)/);
-  assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*22\)/);
-  assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*8\)/);
+  assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*96\)/);
+  assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*24\)/);
+  assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*12\)/);
   assert.match(source, /shadowRadius\s*=\s*6/);
   assert.match(source, /active\s*\?\s*1\s*:\s*0\.12/);
-  assert.match(source, /layer\?\.borderWidth\s*=\s*0\.5/);
+  assert.match(source, /layer\?\.borderWidth\s*=\s*active\s*\?\s*1\s*:\s*0\.75/);
   assert.match(source, /active\s*\?\s*NSColor\.white\.withAlphaComponent\(0\.90\)/);
   assert.match(source, /shadowOpacity\s*=\s*active\s*\?\s*0\.86\s*:\s*0/);
   assert.match(source, /private\s+let\s+highlightLayer\s*=\s*CALayer\(\)/);
@@ -188,7 +188,7 @@ test("capsule reuses the three-lamp activity signal", () => {
   assert.match(source, /private\s+let\s+activityCapsuleSignal\s*=\s*ActivitySignalView/);
   assert.match(source, /quotaCapsuleLabel\.widthAnchor\.constraint\(equalToConstant:\s*52\)/);
   assert.match(source, /let\s+stack\s*=\s*NSStackView\(views:\s*\[activityCapsuleSignal,\s*quotaCapsuleLabel\]\)/);
-  assert.match(source, /stack\.spacing\s*=\s*6/);
+  assert.match(source, /stack\.spacing\s*=\s*4/);
   assert.doesNotMatch(source, /dotCapsuleLabel/);
 });
 
