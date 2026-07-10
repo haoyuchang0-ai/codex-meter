@@ -162,6 +162,7 @@ test("native activity uses a fixed dynamic capsule without layout shift", () => 
 
   assert.match(source, /final\s+class\s+ActivityCapsuleView/);
   assert.match(source, /private\s+let\s+iconView\s*=\s*NSImageView\(\)/);
+  assert.match(source, /private\s+let\s+waveformView\s*=\s*ActivityWaveformView\(\)/);
   assert.match(source, /private\s+var\s+currentStatus:\s*ActivityStatus\?/);
   assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*96\)/);
   assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*24\)/);
@@ -176,6 +177,19 @@ test("native activity uses a fixed dynamic capsule without layout shift", () => 
   assert.doesNotMatch(source, /SignalLampView/);
   assert.match(source, /statusItem\.button\?\.attributedTitle/);
   assert.match(source, /NSAttributedString\(string:\s*"● "/);
+});
+
+test("working capsule continuously animates a four-bar waveform", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /final\s+class\s+ActivityWaveformView/);
+  assert.match(source, /private\s+let\s+barCount\s*=\s*4/);
+  assert.match(source, /repeatCount\s*=\s*\.infinity/);
+  assert.match(source, /beginTime\s*=\s*CACurrentMediaTime\(\)\s*\+\s*\(Double\(index\)\s*\*\s*0\.11\)/);
+  assert.match(source, /accessibilityDisplayShouldReduceMotion/);
+  assert.match(source, /waveformView\.startAnimating\(color:\s*status\.color\)/);
+  assert.match(source, /waveformView\.stopAnimating\(\)/);
+  assert.match(source, /bar\.removeAnimation\(forKey:\s*"workingWave"\)/);
 });
 
 test("small window reuses the dynamic activity capsule", () => {

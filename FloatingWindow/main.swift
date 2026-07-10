@@ -94,8 +94,78 @@ enum ActivityStatus: Equatable {
     }
 }
 
+final class ActivityWaveformView: NSView {
+    private let barCount = 4
+    private var bars: [CALayer] = []
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        translatesAutoresizingMaskIntoConstraints = false
+
+        for _ in 0..<barCount {
+            let bar = CALayer()
+            bar.cornerRadius = 1
+            layer?.addSublayer(bar)
+            bars.append(bar)
+        }
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func layout() {
+        super.layout()
+        let heights: [CGFloat] = [7, 13, 9, 11]
+        let barWidth: CGFloat = 2
+        let spacing: CGFloat = 1.5
+        let totalWidth = (CGFloat(barCount) * barWidth) + (CGFloat(barCount - 1) * spacing)
+        let startX = bounds.midX - (totalWidth / 2) + (barWidth / 2)
+
+        for (index, bar) in bars.enumerated() {
+            bar.bounds = CGRect(x: 0, y: 0, width: barWidth, height: heights[index])
+            bar.position = CGPoint(
+                x: startX + (CGFloat(index) * (barWidth + spacing)),
+                y: bounds.midY
+            )
+        }
+    }
+
+    func startAnimating(color: NSColor) {
+        for (index, bar) in bars.enumerated() {
+            bar.backgroundColor = color.cgColor
+            bar.removeAnimation(forKey: "workingWave")
+            bar.transform = CATransform3DIdentity
+
+            guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { continue }
+
+            let animation = CABasicAnimation(keyPath: "transform.scale.y")
+            animation.fromValue = index.isMultiple(of: 2) ? 0.42 : 0.62
+            animation.toValue = 1.08
+            animation.duration = 0.52 + (Double(index) * 0.04)
+            animation.autoreverses = true
+            animation.repeatCount = .infinity
+            animation.beginTime = CACurrentMediaTime() + (Double(index) * 0.11)
+            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            bar.add(animation, forKey: "workingWave")
+        }
+    }
+
+    func stopAnimating() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for bar in bars {
+            bar.removeAnimation(forKey: "workingWave")
+            bar.transform = CATransform3DIdentity
+        }
+        CATransaction.commit()
+    }
+}
+
 final class ActivityCapsuleView: NSView {
     private let iconView = NSImageView()
+    private let waveformView = ActivityWaveformView()
     private let textLabel = NSTextField(labelWithString: ActivityStatus.idle.label)
     private var currentStatus: ActivityStatus?
 
@@ -109,6 +179,7 @@ final class ActivityCapsuleView: NSView {
 
         iconView.imageScaling = .scaleProportionallyDown
         iconView.translatesAutoresizingMaskIntoConstraints = false
+        waveformView.isHidden = true
 
         textLabel.font = .systemFont(ofSize: 11, weight: .semibold)
         textLabel.textColor = NSColor(calibratedRed: 0.27, green: 0.36, blue: 0.46, alpha: 1)
@@ -117,6 +188,7 @@ final class ActivityCapsuleView: NSView {
         textLabel.translatesAutoresizingMaskIntoConstraints = false
 
         addSubview(iconView)
+        addSubview(waveformView)
         addSubview(textLabel)
 
         NSLayoutConstraint.activate([
@@ -126,6 +198,10 @@ final class ActivityCapsuleView: NSView {
             iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
             iconView.widthAnchor.constraint(equalToConstant: 15),
             iconView.heightAnchor.constraint(equalToConstant: 15),
+            waveformView.leadingAnchor.constraint(equalTo: iconView.leadingAnchor),
+            waveformView.centerYAnchor.constraint(equalTo: iconView.centerYAnchor),
+            waveformView.widthAnchor.constraint(equalTo: iconView.widthAnchor),
+            waveformView.heightAnchor.constraint(equalTo: iconView.heightAnchor),
             textLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 6),
             textLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             textLabel.centerYAnchor.constraint(equalTo: centerYAnchor)
@@ -150,6 +226,14 @@ final class ActivityCapsuleView: NSView {
                 accessibilityDescription: status.label
             )?.withSymbolConfiguration(configuration)
             self.iconView.contentTintColor = status.color
+            let isWorking = status == .working
+            self.iconView.isHidden = isWorking
+            self.waveformView.isHidden = !isWorking
+            if isWorking {
+                self.waveformView.startAnimating(color: status.color)
+            } else {
+                self.waveformView.stopAnimating()
+            }
             self.textLabel.font = .systemFont(
                 ofSize: status == .unknown ? 9 : 11,
                 weight: .semibold
@@ -172,6 +256,7 @@ final class ActivityCapsuleView: NSView {
         CATransaction.setDisableActions(true)
         layer?.setAffineTransform(CGAffineTransform(scaleX: 1.05, y: 1.05))
         iconView.alphaValue = 0.30
+        waveformView.alphaValue = 0.30
         textLabel.alphaValue = 0.55
         apply()
         CATransaction.commit()
@@ -185,6 +270,7 @@ final class ActivityCapsuleView: NSView {
             context.duration = 0.2
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             iconView.animator().alphaValue = 1
+            waveformView.animator().alphaValue = 1
             textLabel.animator().alphaValue = 1
         }
     }
