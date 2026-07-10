@@ -13,6 +13,7 @@ function parseRolloutText(text, threadId) {
       continue;
     }
 
+    if (record === null || typeof record !== "object" || Array.isArray(record)) continue;
     if (record.type !== "event_msg") continue;
     const payloadType = record.payload && record.payload.type;
     if (payloadType !== "task_started" && payloadType !== "task_complete") continue;
@@ -34,16 +35,8 @@ function parseRolloutText(text, threadId) {
 function aggregateActivity({ rolloutEvents = [], hookStates = [], nowMs = Date.now() }) {
   const turns = new Map();
   for (const event of [...rolloutEvents].sort((a, b) => a.updatedAtMs - b.updatedAtMs)) {
-    turns.set(event.turnId, event);
-  }
-
-  for (const event of rolloutEvents) {
-    if (
-      event.status === "done" &&
-      turns.get(event.turnId).status === "working"
-    ) {
-      turns.set(event.turnId, event);
-    }
+    const turnKey = JSON.stringify([event.threadId, event.turnId]);
+    turns.set(turnKey, event);
   }
 
   const latestByThread = new Map();
