@@ -103,7 +103,9 @@ final class SignalLampView: NSView {
     }
 
     func setActive(_ active: Bool) {
-        layer?.backgroundColor = semanticColor.withAlphaComponent(active ? 1 : 0.18).cgColor
+        layer?.backgroundColor = semanticColor.withAlphaComponent(active ? 1 : 0.30).cgColor
+        layer?.borderWidth = 0.5
+        layer?.borderColor = semanticColor.withAlphaComponent(active ? 0.72 : 0.34).cgColor
         layer?.shadowColor = semanticColor.cgColor
         layer?.shadowOpacity = active ? 0.42 : 0
     }

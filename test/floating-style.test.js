@@ -169,6 +169,8 @@ test("native activity signal uses three persistent lamps without layout shift", 
   assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*22\)/);
   assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*8\)/);
   assert.match(source, /shadowRadius\s*=\s*4/);
+  assert.match(source, /active\s*\?\s*1\s*:\s*0\.30/);
+  assert.match(source, /layer\?\.borderWidth\s*=\s*0\.5/);
   assert.match(source, /accessibilityDisplayShouldReduceMotion/);
   assert.match(source, /CATransaction\.setAnimationDuration\(0\.2\)/);
   assert.doesNotMatch(source, /ActivityPillView/);
