@@ -10,22 +10,38 @@ private let activityTasksEndpoint = URL(string: "http://127.0.0.1:5487/api/activ
 private let expandedWindowSize = NSSize(width: 312, height: 184)
 private let capsuleWindowSize = NSSize(width: 156, height: 44)
 
+private enum SageGraphitePalette {
+    static let windowBackground = NSColor(calibratedRed: 0.949, green: 0.953, blue: 0.937, alpha: 1)
+    static let cardSurface = NSColor(calibratedRed: 0.980, green: 0.984, blue: 0.973, alpha: 1)
+    static let cardBorder = NSColor(calibratedRed: 0.851, green: 0.863, blue: 0.835, alpha: 0.90)
+    static let progressTrack = NSColor(calibratedRed: 0.894, green: 0.906, blue: 0.882, alpha: 1)
+    static let primaryText = NSColor(calibratedRed: 0.161, green: 0.176, blue: 0.165, alpha: 1)
+    static let secondaryText = NSColor(calibratedRed: 0.392, green: 0.431, blue: 0.396, alpha: 1)
+    static let tertiaryText = NSColor(calibratedRed: 0.506, green: 0.533, blue: 0.502, alpha: 1)
+    static let controlTint = NSColor(calibratedRed: 0.408, green: 0.475, blue: 0.416, alpha: 1)
+    static let healthy = NSColor(calibratedRed: 0.459, green: 0.545, blue: 0.455, alpha: 1)
+    static let warning = NSColor(calibratedRed: 0.780, green: 0.584, blue: 0.239, alpha: 1)
+    static let critical = NSColor(calibratedRed: 0.784, green: 0.376, blue: 0.361, alpha: 1)
+    static let completed = NSColor(calibratedRed: 0.310, green: 0.596, blue: 0.439, alpha: 1)
+    static let idle = NSColor(calibratedRed: 0.525, green: 0.553, blue: 0.525, alpha: 1)
+}
+
 private func quotaFillColor(for remainingPercent: Int) -> NSColor {
     if remainingPercent < 20 {
-        return NSColor(calibratedRed: 0.88, green: 0.30, blue: 0.31, alpha: 1)
+        return SageGraphitePalette.critical
     }
     if remainingPercent < 50 {
-        return NSColor(calibratedRed: 0.92, green: 0.62, blue: 0.16, alpha: 1)
+        return SageGraphitePalette.warning
     }
-    return NSColor(calibratedRed: 0.31, green: 0.62, blue: 0.86, alpha: 1)
+    return SageGraphitePalette.healthy
 }
 
 enum QuotaVisualStyle {
-    case creamBlue
+    case sageGraphite
     case minimalistDashboard
 
     mutating func toggle() {
-        self = self == .creamBlue ? .minimalistDashboard : .creamBlue
+        self = self == .sageGraphite ? .minimalistDashboard : .sageGraphite
     }
 }
 
@@ -67,15 +83,15 @@ enum ActivityStatus: Equatable {
     var color: NSColor {
         switch self {
         case .waiting:
-            return NSColor(calibratedRed: 0.88, green: 0.35, blue: 0.35, alpha: 1)
+            return SageGraphitePalette.critical
         case .working:
-            return NSColor(calibratedRed: 0.85, green: 0.64, blue: 0.11, alpha: 1)
+            return SageGraphitePalette.warning
         case .done:
-            return NSColor(calibratedRed: 0.18, green: 0.75, blue: 0.44, alpha: 1)
+            return SageGraphitePalette.completed
         case .idle:
-            return NSColor(calibratedRed: 0.54, green: 0.58, blue: 0.64, alpha: 1)
+            return SageGraphitePalette.idle
         case .unknown:
-            return NSColor(calibratedWhite: 0.46, alpha: 1)
+            return SageGraphitePalette.idle
         }
     }
 
@@ -197,7 +213,7 @@ final class ActivityCapsuleView: NSView {
         waveformView.isHidden = true
 
         textLabel.font = .systemFont(ofSize: 11, weight: .semibold)
-        textLabel.textColor = NSColor(calibratedRed: 0.27, green: 0.36, blue: 0.46, alpha: 1)
+        textLabel.textColor = SageGraphitePalette.secondaryText
         textLabel.alignment = .left
         textLabel.lineBreakMode = .byClipping
         textLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -490,10 +506,10 @@ final class MeterBarView: NSView {
             needsDisplay = true
         }
     }
-    var trackColor = NSColor(calibratedRed: 0.90, green: 0.94, blue: 0.98, alpha: 1) {
+    var trackColor = SageGraphitePalette.progressTrack {
         didSet { needsDisplay = true }
     }
-    var fillColor = NSColor(calibratedRed: 0.31, green: 0.62, blue: 0.86, alpha: 1) {
+    var fillColor = SageGraphitePalette.healthy {
         didSet { needsDisplay = true }
     }
 
@@ -527,21 +543,21 @@ final class CompactMeterRow: NSView {
         wantsLayer = true
         layer?.cornerRadius = 13
         layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.62).cgColor
+        layer?.backgroundColor = SageGraphitePalette.cardSurface.cgColor
         layer?.borderWidth = 0.5
-        layer?.borderColor = NSColor(calibratedRed: 0.68, green: 0.80, blue: 0.90, alpha: 0.7).cgColor
+        layer?.borderColor = SageGraphitePalette.cardBorder.cgColor
 
         nameLabel.stringValue = name
         nameLabel.font = .systemFont(ofSize: 10, weight: .semibold)
-        nameLabel.textColor = NSColor(calibratedRed: 0.27, green: 0.36, blue: 0.46, alpha: 1)
+        nameLabel.textColor = SageGraphitePalette.secondaryText
         nameLabel.alignment = .left
 
         valueLabel.font = .monospacedDigitSystemFont(ofSize: 22, weight: .semibold)
-        valueLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
+        valueLabel.textColor = SageGraphitePalette.primaryText
         valueLabel.alignment = .right
 
         resetLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .medium)
-        resetLabel.textColor = NSColor(calibratedRed: 0.42, green: 0.48, blue: 0.55, alpha: 1)
+        resetLabel.textColor = SageGraphitePalette.tertiaryText
         resetLabel.alignment = .right
 
         for child in [nameLabel, valueLabel, resetLabel, barView] {
@@ -605,13 +621,13 @@ final class CompactMeterRow: NSView {
 
     func applyVisualStyle(_ style: QuotaVisualStyle) {
         switch style {
-        case .creamBlue:
-            layer?.backgroundColor = NSColor.white.withAlphaComponent(0.62).cgColor
-            layer?.borderColor = NSColor(calibratedRed: 0.68, green: 0.80, blue: 0.90, alpha: 0.7).cgColor
-            nameLabel.textColor = NSColor(calibratedRed: 0.27, green: 0.36, blue: 0.46, alpha: 1)
-            valueLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
-            resetLabel.textColor = NSColor(calibratedRed: 0.42, green: 0.48, blue: 0.55, alpha: 1)
-            barView.trackColor = NSColor(calibratedRed: 0.90, green: 0.94, blue: 0.98, alpha: 1)
+        case .sageGraphite:
+            layer?.backgroundColor = SageGraphitePalette.cardSurface.cgColor
+            layer?.borderColor = SageGraphitePalette.cardBorder.cgColor
+            nameLabel.textColor = SageGraphitePalette.secondaryText
+            valueLabel.textColor = SageGraphitePalette.primaryText
+            resetLabel.textColor = SageGraphitePalette.tertiaryText
+            barView.trackColor = SageGraphitePalette.progressTrack
         case .minimalistDashboard:
             layer?.backgroundColor = NSColor.white.withAlphaComponent(0.78).cgColor
             layer?.borderColor = NSColor(calibratedRed: 0.82, green: 0.84, blue: 0.87, alpha: 0.9).cgColor
@@ -633,7 +649,7 @@ final class CircularGaugeView: NSView {
 
     private var fraction: CGFloat = 0
     private var trackColor = NSColor(calibratedWhite: 0.88, alpha: 1)
-    private var fillColor = NSColor(calibratedRed: 0.31, green: 0.62, blue: 0.86, alpha: 1)
+    private var fillColor = SageGraphitePalette.healthy
     private var remainingPercent: Int?
 
     init(caption: String, accessibilityLabel: String) {
@@ -642,9 +658,9 @@ final class CircularGaugeView: NSView {
         wantsLayer = true
         layer?.cornerRadius = 15
         layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.58).cgColor
+        layer?.backgroundColor = SageGraphitePalette.cardSurface.cgColor
         layer?.borderWidth = 0.5
-        layer?.borderColor = NSColor(calibratedRed: 0.68, green: 0.80, blue: 0.90, alpha: 0.55).cgColor
+        layer?.borderColor = SageGraphitePalette.cardBorder.cgColor
 
         captionLabel.stringValue = caption
         captionLabel.font = .systemFont(ofSize: 10, weight: .bold)
@@ -710,13 +726,13 @@ final class CircularGaugeView: NSView {
 
     func applyVisualStyle(_ style: QuotaVisualStyle) {
         switch style {
-        case .creamBlue:
-            layer?.backgroundColor = NSColor.white.withAlphaComponent(0.58).cgColor
-            layer?.borderColor = NSColor(calibratedRed: 0.68, green: 0.80, blue: 0.90, alpha: 0.55).cgColor
-            captionLabel.textColor = NSColor(calibratedRed: 0.27, green: 0.36, blue: 0.46, alpha: 1)
-            valueLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
-            resetLabel.textColor = NSColor(calibratedRed: 0.42, green: 0.48, blue: 0.55, alpha: 1)
-            trackColor = NSColor(calibratedRed: 0.88, green: 0.94, blue: 0.99, alpha: 1)
+        case .sageGraphite:
+            layer?.backgroundColor = SageGraphitePalette.cardSurface.cgColor
+            layer?.borderColor = SageGraphitePalette.cardBorder.cgColor
+            captionLabel.textColor = SageGraphitePalette.secondaryText
+            valueLabel.textColor = SageGraphitePalette.primaryText
+            resetLabel.textColor = SageGraphitePalette.tertiaryText
+            trackColor = SageGraphitePalette.progressTrack
         case .minimalistDashboard:
             layer?.backgroundColor = NSColor.white.withAlphaComponent(0.78).cgColor
             layer?.borderColor = NSColor(calibratedRed: 0.82, green: 0.84, blue: 0.87, alpha: 0.72).cgColor
@@ -771,7 +787,7 @@ final class CapsuleViewController: NSViewController, NSGestureRecognizerDelegate
         view.wantsLayer = true
         view.layer?.cornerRadius = 20
         view.layer?.cornerCurve = .continuous
-        view.layer?.backgroundColor = NSColor(calibratedRed: 0.96, green: 0.98, blue: 1.0, alpha: 0.94).cgColor
+        view.layer?.backgroundColor = SageGraphitePalette.windowBackground.cgColor
         view.setAccessibilityLabel("Codex 额度胶囊窗口")
         view.toolTip = "点击展开 Codex Meter"
     }
@@ -780,7 +796,7 @@ final class CapsuleViewController: NSViewController, NSGestureRecognizerDelegate
         super.viewDidLoad()
 
         quotaCapsuleLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
-        quotaCapsuleLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
+        quotaCapsuleLabel.textColor = SageGraphitePalette.primaryText
         quotaCapsuleLabel.alignment = .right
 
         let stack = NSStackView(views: [activityStatusCapsule, quotaCapsuleLabel])
@@ -874,7 +890,7 @@ final class QuotaViewController: NSViewController {
     private let contentStage = NSView()
     private lazy var rowStack = NSStackView(views: [primaryMeter, secondaryMeter])
     private lazy var gaugeStack = NSStackView(views: [primaryGauge, secondaryGauge])
-    private var visualStyle: QuotaVisualStyle = .creamBlue
+    private var visualStyle: QuotaVisualStyle = .sageGraphite
     private var displayMode: QuotaDisplayMode = .circularDashboard
     private var isAutoRefreshEnabled = true
     private var refreshTimer: Timer?
@@ -892,7 +908,7 @@ final class QuotaViewController: NSViewController {
         view.wantsLayer = true
         view.layer?.cornerRadius = 22
         view.layer?.cornerCurve = .continuous
-        view.layer?.backgroundColor = NSColor(calibratedRed: 0.96, green: 0.98, blue: 1.0, alpha: 0.92).cgColor
+        view.layer?.backgroundColor = SageGraphitePalette.windowBackground.cgColor
     }
 
     override func viewDidLoad() {
@@ -911,7 +927,7 @@ final class QuotaViewController: NSViewController {
 
     private func buildUI() {
         titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
-        titleLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
+        titleLabel.textColor = SageGraphitePalette.primaryText
 
         configureIconButton(shrinkButton, symbolName: "rectangle.compress.vertical", toolTip: "收起为胶囊", action: #selector(shrinkButtonPressed))
         configureIconButton(gaugeButton, symbolName: "gauge.medium", toolTip: "切换条形/圆形仪表盘", action: #selector(gaugeButtonPressed))
@@ -1167,11 +1183,11 @@ final class QuotaViewController: NSViewController {
         secondaryGauge.applyVisualStyle(visualStyle)
 
         switch visualStyle {
-        case .creamBlue:
-            view.layer?.backgroundColor = NSColor(calibratedRed: 0.96, green: 0.98, blue: 1.0, alpha: 0.92).cgColor
-            titleLabel.textColor = NSColor(calibratedRed: 0.09, green: 0.15, blue: 0.22, alpha: 1)
+        case .sageGraphite:
+            view.layer?.backgroundColor = SageGraphitePalette.windowBackground.cgColor
+            titleLabel.textColor = SageGraphitePalette.primaryText
             for button in [shrinkButton, gaugeButton, colorButton, refreshButton] {
-                button.contentTintColor = NSColor(calibratedRed: 0.18, green: 0.44, blue: 0.62, alpha: 1)
+                button.contentTintColor = SageGraphitePalette.controlTint
             }
             colorButton.toolTip = "切换到简约灰白配色"
         case .minimalistDashboard:
@@ -1180,7 +1196,7 @@ final class QuotaViewController: NSViewController {
             for button in [shrinkButton, gaugeButton, colorButton, refreshButton] {
                 button.contentTintColor = NSColor(calibratedWhite: 0.18, alpha: 1)
             }
-            colorButton.toolTip = "切换到奶油蓝配色"
+            colorButton.toolTip = "切换到鼠尾草配色"
         }
     }
 

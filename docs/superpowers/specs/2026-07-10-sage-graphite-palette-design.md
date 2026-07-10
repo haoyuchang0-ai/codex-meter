@@ -6,7 +6,7 @@ Replace the cool blue default theme with the approved "Sage Graphite" palette wh
 
 ## Visual Direction
 
-The floating window should feel neutral, mature, and quiet enough to remain visible throughout the workday. A soft graphite-tinted background replaces the blue-white surface. Muted sage is used for normal quota capacity and controls, while ochre and brick red remain reserved for warning states.
+The floating window should feel neutral, mature, and quiet enough to remain visible throughout the workday. A solid graphite-tinted background replaces the translucent blue-white surface so desktop content cannot bleed through. Muted sage is used for normal quota capacity and controls, while ochre and brick red remain reserved for warning states.
 
 The palette must avoid a one-color appearance. Neutral graphite defines the structure, sage communicates healthy capacity, ochre communicates attention, and brick red communicates urgency.
 
@@ -53,4 +53,5 @@ No interaction or data-flow behavior changes. Auto refresh remains once per minu
 - No blue accent remains in the default theme.
 - Healthy, warning, and critical quota levels are immediately distinguishable without making the window visually loud.
 - Text remains readable against all default-theme surfaces.
+- Desktop content does not remain legible through the window or meter cards.
 - Layout, window dimensions, controls, animations, and refresh behavior remain unchanged.

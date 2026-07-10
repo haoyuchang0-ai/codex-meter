@@ -10,6 +10,16 @@ function readMainSwift() {
   );
 }
 
+function swiftClassSource(source, className, nextClassName) {
+  const match = source.match(
+    new RegExp(
+      `final\\s+class\\s+${className}[\\s\\S]*?(?=final\\s+class\\s+${nextClassName})`,
+    ),
+  );
+  assert.ok(match, `expected ${className} before ${nextClassName}`);
+  return match[0];
+}
+
 test("native floating window centers the Codex title", () => {
   const source = readMainSwift();
 
@@ -23,9 +33,64 @@ test("native floating window can switch to minimalist dashboard style", () => {
   const source = readMainSwift();
 
   assert.match(source, /enum\s+QuotaVisualStyle/);
+  assert.match(source, /sageGraphite/);
   assert.match(source, /minimalistDashboard/);
   assert.match(source, /colorButtonPressed/);
   assert.match(source, /applyVisualStyle/);
+});
+
+test("native floating window uses the sage graphite palette", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /private\s+enum\s+SageGraphitePalette/);
+  assert.match(source, /case\s+sageGraphite/);
+  assert.doesNotMatch(source, /case\s+creamBlue/);
+  assert.match(source, /windowBackground\s*=\s*NSColor\(calibratedRed:\s*0\.949,\s*green:\s*0\.953,\s*blue:\s*0\.937,\s*alpha:\s*1\)/);
+  assert.match(source, /cardSurface\s*=\s*NSColor\(calibratedRed:\s*0\.980,\s*green:\s*0\.984,\s*blue:\s*0\.973,\s*alpha:\s*1\)/);
+  assert.match(source, /cardBorder\s*=\s*NSColor\(calibratedRed:\s*0\.851,\s*green:\s*0\.863,\s*blue:\s*0\.835/);
+  assert.match(source, /progressTrack\s*=\s*NSColor\(calibratedRed:\s*0\.894,\s*green:\s*0\.906,\s*blue:\s*0\.882/);
+  assert.match(source, /primaryText\s*=\s*NSColor\(calibratedRed:\s*0\.161,\s*green:\s*0\.176,\s*blue:\s*0\.165/);
+  assert.match(source, /secondaryText\s*=\s*NSColor\(calibratedRed:\s*0\.392,\s*green:\s*0\.431,\s*blue:\s*0\.396/);
+  assert.match(source, /tertiaryText\s*=\s*NSColor\(calibratedRed:\s*0\.506,\s*green:\s*0\.533,\s*blue:\s*0\.502/);
+  assert.match(source, /controlTint\s*=\s*NSColor\(calibratedRed:\s*0\.408,\s*green:\s*0\.475,\s*blue:\s*0\.416/);
+  assert.match(source, /healthy\s*=\s*NSColor\(calibratedRed:\s*0\.459,\s*green:\s*0\.545,\s*blue:\s*0\.455/);
+  assert.match(source, /warning\s*=\s*NSColor\(calibratedRed:\s*0\.780,\s*green:\s*0\.584,\s*blue:\s*0\.239/);
+  assert.match(source, /critical\s*=\s*NSColor\(calibratedRed:\s*0\.784,\s*green:\s*0\.376,\s*blue:\s*0\.361/);
+  assert.match(source, /completed\s*=\s*NSColor\(calibratedRed:\s*0\.310,\s*green:\s*0\.596,\s*blue:\s*0\.439/);
+  assert.match(source, /idle\s*=\s*NSColor\(calibratedRed:\s*0\.525,\s*green:\s*0\.553,\s*blue:\s*0\.525/);
+  assert.doesNotMatch(source, /calibratedRed:\s*0\.31,\s*green:\s*0\.62,\s*blue:\s*0\.86/);
+  assert.doesNotMatch(source, /calibratedRed:\s*0\.96,\s*green:\s*0\.98,\s*blue:\s*1\.0/);
+  assert.doesNotMatch(source, /calibratedRed:\s*0\.18,\s*green:\s*0\.44,\s*blue:\s*0\.62/);
+});
+
+test("sage graphite tokens are applied to every default-theme surface", () => {
+  const source = readMainSwift();
+  const compactMeter = swiftClassSource(source, "CompactMeterRow", "CircularGaugeView");
+  const circularGauge = swiftClassSource(source, "CircularGaugeView", "CapsuleViewController");
+  const capsule = swiftClassSource(source, "CapsuleViewController", "QuotaViewController");
+  const expanded = swiftClassSource(source, "QuotaViewController", "AppDelegate");
+
+  assert.match(compactMeter, /case\s+\.sageGraphite:[\s\S]*SageGraphitePalette\.cardSurface/);
+  assert.match(compactMeter, /SageGraphitePalette\.cardBorder/);
+  assert.match(compactMeter, /SageGraphitePalette\.secondaryText/);
+  assert.match(compactMeter, /SageGraphitePalette\.primaryText/);
+  assert.match(compactMeter, /SageGraphitePalette\.tertiaryText/);
+  assert.match(compactMeter, /SageGraphitePalette\.progressTrack/);
+
+  assert.match(circularGauge, /case\s+\.sageGraphite:[\s\S]*SageGraphitePalette\.cardSurface/);
+  assert.match(circularGauge, /SageGraphitePalette\.cardBorder/);
+  assert.match(circularGauge, /SageGraphitePalette\.secondaryText/);
+  assert.match(circularGauge, /SageGraphitePalette\.primaryText/);
+  assert.match(circularGauge, /SageGraphitePalette\.tertiaryText/);
+  assert.match(circularGauge, /SageGraphitePalette\.progressTrack/);
+
+  assert.match(capsule, /view\.layer\?\.backgroundColor\s*=\s*SageGraphitePalette\.windowBackground\.cgColor/);
+  assert.match(capsule, /quotaCapsuleLabel\.textColor\s*=\s*SageGraphitePalette\.primaryText/);
+
+  assert.match(expanded, /private\s+var\s+visualStyle:\s*QuotaVisualStyle\s*=\s*\.sageGraphite/);
+  assert.match(expanded, /case\s+\.sageGraphite:[\s\S]*view\.layer\?\.backgroundColor\s*=\s*SageGraphitePalette\.windowBackground\.cgColor/);
+  assert.match(expanded, /titleLabel\.textColor\s*=\s*SageGraphitePalette\.primaryText/);
+  assert.match(expanded, /button\.contentTintColor\s*=\s*SageGraphitePalette\.controlTint/);
 });
 
 test("native floating window defines activity states", () => {
@@ -42,10 +107,10 @@ test("native floating window defines activity states", () => {
   assert.match(source, /return\s+"已完成"/);
   assert.match(source, /return\s+"空闲"/);
   assert.match(source, /return\s+"状态未知"/);
-  assert.match(source, /calibratedRed:\s*0\.88,\s*green:\s*0\.35,\s*blue:\s*0\.35/);
-  assert.match(source, /calibratedRed:\s*0\.85,\s*green:\s*0\.64,\s*blue:\s*0\.11/);
-  assert.match(source, /calibratedRed:\s*0\.18,\s*green:\s*0\.75,\s*blue:\s*0\.44/);
-  assert.match(source, /calibratedRed:\s*0\.54,\s*green:\s*0\.58,\s*blue:\s*0\.64/);
+  assert.match(source, /case\s+\.waiting:\s*return\s+SageGraphitePalette\.critical/);
+  assert.match(source, /case\s+\.working:\s*return\s+SageGraphitePalette\.warning/);
+  assert.match(source, /case\s+\.done:\s*return\s+SageGraphitePalette\.completed/);
+  assert.match(source, /case\s+\.idle:\s*return\s+SageGraphitePalette\.idle/);
 });
 
 test("native floating window removes the left status cluster", () => {
@@ -70,9 +135,9 @@ test("quota progress colors reflect remaining percentage in both views", () => {
   assert.match(source, /func\s+quotaFillColor\(for\s+remainingPercent:\s*Int\)/);
   assert.match(source, /if\s+remainingPercent\s*<\s*20/);
   assert.match(source, /if\s+remainingPercent\s*<\s*50/);
-  assert.match(source, /calibratedRed:\s*0\.88,\s*green:\s*0\.30,\s*blue:\s*0\.31/);
-  assert.match(source, /calibratedRed:\s*0\.92,\s*green:\s*0\.62,\s*blue:\s*0\.16/);
-  assert.match(source, /calibratedRed:\s*0\.31,\s*green:\s*0\.62,\s*blue:\s*0\.86/);
+  assert.match(source, /return\s+SageGraphitePalette\.critical/);
+  assert.match(source, /return\s+SageGraphitePalette\.warning/);
+  assert.match(source, /return\s+SageGraphitePalette\.healthy/);
   assert.match(source, /barView\.fillColor\s*=\s*quotaFillColor\(for:\s*remaining\)/);
   assert.match(source, /fillColor\s*=\s*quotaFillColor\(for:\s*remaining\)/);
   assert.doesNotMatch(source, /barView\.fillColor\s*=\s*NSColor\(calibratedRed:\s*0\.16,\s*green:\s*0\.62/);
@@ -129,10 +194,11 @@ test("native circular dashboard has more vertical breathing room", () => {
 
 test("native circular dashboard matches the refined card treatment", () => {
   const source = readMainSwift();
+  const circularGauge = swiftClassSource(source, "CircularGaugeView", "CapsuleViewController");
 
-  assert.match(source, /final\s+class\s+CircularGaugeView[\s\S]*layer\?\.borderWidth\s*=\s*0\.5/);
-  assert.match(source, /case\s+\.creamBlue:[\s\S]*layer\?\.borderColor\s*=\s*NSColor\(calibratedRed:\s*0\.68,\s*green:\s*0\.80,\s*blue:\s*0\.90,\s*alpha:\s*0\.55\)\.cgColor/);
-  assert.match(source, /case\s+\.minimalistDashboard:[\s\S]*layer\?\.borderColor\s*=\s*NSColor\(calibratedRed:\s*0\.82,\s*green:\s*0\.84,\s*blue:\s*0\.87,\s*alpha:\s*0\.72\)\.cgColor/);
+  assert.match(circularGauge, /layer\?\.borderWidth\s*=\s*0\.5/);
+  assert.match(circularGauge, /case\s+\.sageGraphite:[\s\S]*layer\?\.borderColor\s*=\s*SageGraphitePalette\.cardBorder\.cgColor/);
+  assert.match(circularGauge, /case\s+\.minimalistDashboard:[\s\S]*layer\?\.borderColor\s*=\s*NSColor\(calibratedRed:\s*0\.82,\s*green:\s*0\.84,\s*blue:\s*0\.87,\s*alpha:\s*0\.72\)\.cgColor/);
 });
 
 test("native circular dashboard removes decorative tick marks that crowd reset time", () => {
