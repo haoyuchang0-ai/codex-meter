@@ -21,8 +21,7 @@ if ! /usr/bin/curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
     exit 1
   fi
 
-  cd "$ROOT"
-  nohup "$NODE_BIN" server.js >> "$ROOT/quota-window.log" 2>&1 &
+  nohup "$NODE_BIN" "$ROOT/server.js" >> "$ROOT/quota-window.log" 2>&1 &
   echo $! > "$PID_FILE"
   disown || true
   sleep 1

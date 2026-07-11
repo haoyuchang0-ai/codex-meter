@@ -55,6 +55,7 @@ test("project ignores local-only generated files", () => {
   assert.match(gitignore, /^CodexQuotaFloat\.app\/$/m);
   assert.match(gitignore, /^quota-window\.log$/m);
   assert.match(gitignore, /^quota-window\.pid$/m);
+  assert.match(gitignore, /^quota-window\.session$/m);
   assert.match(gitignore, /^\.superpowers\/$/m);
 });
 
@@ -62,6 +63,23 @@ test("project exposes the local Hook installer", () => {
   const pkg = JSON.parse(read("package.json"));
 
   assert.equal(pkg.scripts["install:hooks"], "node scripts/install-activity-hooks.js");
+});
+
+test("project exposes Codex lifecycle autostart management", () => {
+  const pkg = JSON.parse(read("package.json"));
+  const readme = read("README.md");
+
+  assert.equal(
+    pkg.scripts["install:autostart"],
+    "zsh scripts/manage-autostart.sh install",
+  );
+  assert.equal(
+    pkg.scripts["uninstall:autostart"],
+    "zsh scripts/manage-autostart.sh uninstall",
+  );
+  assert.match(readme, /npm run install:autostart/);
+  assert.match(readme, /npm run uninstall:autostart/);
+  assert.match(readme, /Library\/Logs\/CodexMeter/);
 });
 
 test("launcher is portable and builds the native app when missing", () => {
@@ -87,7 +105,7 @@ test("launcher keeps the local quota service alive after launch", () => {
 
   assert.match(launcher, /PID_FILE="\$ROOT\/quota-window\.pid"/);
   assert.match(launcher, /codex-primary-runtime\/dependencies\/node\/bin\/node/);
-  assert.match(launcher, /nohup\s+"\$NODE_BIN"\s+server\.js/);
+  assert.match(launcher, /nohup\s+"\$NODE_BIN"\s+"\$ROOT\/server\.js"/);
   assert.match(launcher, /echo\s+\$!\s+>\s+"\$PID_FILE"/);
   assert.match(launcher, /disown/);
 });

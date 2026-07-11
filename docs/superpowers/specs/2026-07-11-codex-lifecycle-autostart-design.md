@@ -21,7 +21,7 @@ Codex Meter was previously kept alive by a detached `screen` session. That sessi
 
 ### Lifecycle Watcher
 
-Add `scripts/codex-lifecycle-watcher.sh` as a long-running, low-frequency shell process. It polls the exact main-process command every three seconds and keeps transition state in memory. It invokes the existing launcher only on an absent-to-running transition.
+Add `scripts/codex-lifecycle-watcher.sh` as a long-running, low-frequency shell process. It polls the exact main-process command every three seconds and persists the process ID plus start time as a Codex session identifier. It invokes the existing launcher only when that identifier changes, so a watcher restart does not relaunch a meter that the user manually closed during the same Codex session.
 
 On a running-to-absent transition, it terminates `CodexQuotaFloat` by exact process name and stops only the Node process recorded in `quota-window.pid` after verifying that its command contains the repository's absolute `server.js` path. A stale or invalid PID file must not terminate any process.
 
@@ -29,9 +29,9 @@ On a running-to-absent transition, it terminates `CodexQuotaFloat` by exact proc
 
 Add `scripts/manage-autostart.sh` with `install` and `uninstall` actions.
 
-Installation generates `~/Library/LaunchAgents/com.haoyuchang.codex-meter.plist` with absolute paths to the repository and watcher. The agent uses `RunAtLoad` and `KeepAlive` so the watcher is restored after login or an unexpected watcher exit. Standard output and errors go to `~/Library/Logs/CodexMeter/`.
+Installation copies the signed app, server runtime, launcher, and watcher to `~/Library/Application Support/CodexMeter/runtime`, then generates `~/Library/LaunchAgents/com.haoyuchang.codex-meter.plist` with absolute paths to that installed runtime. Running outside `Documents` avoids macOS background privacy restrictions. The agent uses `RunAtLoad` and `KeepAlive` so the watcher is restored after login or an unexpected watcher exit. Standard output and errors go to `~/Library/Logs/CodexMeter/`.
 
-Uninstallation boots out the user agent and removes only the generated plist. It also stops the watcher-managed meter processes so uninstall leaves no background component behind.
+Uninstallation boots out the user agent, stops the watcher-managed meter processes, removes the generated plist, and removes the installed runtime copy. Project source files and logs are preserved.
 
 ### Existing Launcher
 

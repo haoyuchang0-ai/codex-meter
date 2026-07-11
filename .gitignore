@@ -6,6 +6,7 @@ build/
 CodexQuotaFloat.app/
 quota-window.log
 quota-window.pid
+quota-window.session
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

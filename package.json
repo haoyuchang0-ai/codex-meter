@@ -8,6 +8,8 @@
     "build:mac": "zsh scripts/build-floating-window.sh",
     "start": "node server.js",
     "install:hooks": "node scripts/install-activity-hooks.js",
+    "install:autostart": "zsh scripts/manage-autostart.sh install",
+    "uninstall:autostart": "zsh scripts/manage-autostart.sh uninstall",
     "test": "node --test test/*.test.js"
   },
   "repository": {

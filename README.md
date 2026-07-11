@@ -59,6 +59,42 @@ Restart Codex once after installation, then run the floating window:
 
 The launcher starts the local quota service, builds `CodexQuotaFloat.app` if needed, and opens the floating window.
 
+## 随 Codex 自启动
+
+安装一次 macOS 用户级 LaunchAgent：
+
+```bash
+npm run install:autostart
+```
+
+之后，打开 Codex 时会自动启动额度服务和悬浮窗；退出 Codex 时两者也会自动关闭。若在 Codex 仍运行时手动退出悬浮窗，本次 Codex 会话不会强制重新打开，下一次启动 Codex 时会恢复。
+
+卸载自启动：
+
+```bash
+npm run uninstall:autostart
+```
+
+运行文件安装在 `~/Library/Application Support/CodexMeter/runtime/`，监听器日志位于 `~/Library/Logs/CodexMeter/`。
+
+## Codex Lifecycle Autostart
+
+Install the per-user macOS LaunchAgent once:
+
+```bash
+npm run install:autostart
+```
+
+Codex Meter will then start with Codex and stop when Codex exits. If you manually quit the meter while Codex remains open, it stays closed for that Codex session and returns the next time Codex starts.
+
+Remove autostart with:
+
+```bash
+npm run uninstall:autostart
+```
+
+Runtime files are installed under `~/Library/Application Support/CodexMeter/runtime/`, and watcher logs are stored in `~/Library/Logs/CodexMeter/`.
+
 活动状态每秒从本机读取一次，额度仍每 60 秒刷新一次。状态优先级为 `waiting > working > done > idle`；完成状态保留 8 秒。
 
 Activity is read locally once per second, while quota still refreshes once per minute. Priority is `waiting > working > done > idle`, and Done remains visible for 8 seconds.
