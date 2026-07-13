@@ -36,6 +36,34 @@ private func quotaFillColor(for remainingPercent: Int) -> NSColor {
     return SageGraphitePalette.healthy
 }
 
+private func subscriptionDisplayName(_ planType: String?) -> String? {
+    guard let value = planType?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !value.isEmpty else {
+        return nil
+    }
+
+    switch value.lowercased() {
+    case "free": return "Free"
+    case "plus": return "Plus"
+    case "pro": return "Pro"
+    case "team": return "Team"
+    case "business": return "Business"
+    case "enterprise": return "Enterprise"
+    case "edu", "education": return "Edu"
+    default: return value.prefix(1).uppercased() + String(value.dropFirst())
+    }
+}
+
+private func subscriptionBadgeText(_ planType: String?) -> String? {
+    guard let name = subscriptionDisplayName(planType) else { return nil }
+
+    switch name.lowercased() {
+    case "business": return "BUS"
+    case "enterprise": return "ENT"
+    default: return String(name.prefix(4)).uppercased()
+    }
+}
+
 enum QuotaVisualStyle {
     case sageGraphite
     case minimalistDashboard
@@ -317,6 +345,60 @@ final class ActivityCapsuleView: NSView {
             iconView.animator().alphaValue = 1
             waveformView.animator().alphaValue = 1
             textLabel.animator().alphaValue = 1
+        }
+    }
+}
+
+final class SubscriptionBadgeView: NSView {
+    private let textLabel = NSTextField(labelWithString: "")
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.cornerRadius = 8.5
+        layer?.cornerCurve = .continuous
+        layer?.borderWidth = 0.5
+        translatesAutoresizingMaskIntoConstraints = false
+
+        textLabel.font = .systemFont(ofSize: 8, weight: .bold)
+        textLabel.alignment = .center
+        textLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(textLabel)
+
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: 34),
+            heightAnchor.constraint(equalToConstant: 17),
+            textLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            textLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            textLabel.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+
+        update(planType: nil)
+        applyVisualStyle(.sageGraphite)
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    func update(planType: String?) {
+        let displayName = subscriptionDisplayName(planType)
+        textLabel.stringValue = subscriptionBadgeText(planType) ?? ""
+        alphaValue = displayName == nil ? 0 : 1
+        toolTip = displayName.map { "当前订阅：\($0)" }
+        setAccessibilityLabel(displayName.map { "当前订阅 \($0)" })
+    }
+
+    func applyVisualStyle(_ style: QuotaVisualStyle) {
+        switch style {
+        case .sageGraphite:
+            layer?.backgroundColor = SageGraphitePalette.controlTint.withAlphaComponent(0.10).cgColor
+            layer?.borderColor = SageGraphitePalette.controlTint.withAlphaComponent(0.20).cgColor
+            textLabel.textColor = SageGraphitePalette.controlTint
+        case .minimalistDashboard:
+            layer?.backgroundColor = NSColor(calibratedWhite: 0.12, alpha: 0.07).cgColor
+            layer?.borderColor = NSColor(calibratedWhite: 0.18, alpha: 0.14).cgColor
+            textLabel.textColor = NSColor(calibratedWhite: 0.28, alpha: 1)
         }
     }
 }
@@ -772,8 +854,10 @@ final class CircularGaugeView: NSView {
 
 final class CapsuleViewController: NSViewController, NSGestureRecognizerDelegate {
     private let activityStatusCapsule = ActivityCapsuleView()
+    private let subscriptionLabel = NSTextField(labelWithString: "")
     private let quotaCapsuleLabel = NSTextField(labelWithString: "--/--")
     private var currentActivityStatus: ActivityStatus = .idle
+    private var currentPlanType: String?
     private var primaryWindow: QuotaWindow?
     private var secondaryWindow: QuotaWindow?
     private lazy var expandGestureRecognizer = NSClickGestureRecognizer(
@@ -799,7 +883,18 @@ final class CapsuleViewController: NSViewController, NSGestureRecognizerDelegate
         quotaCapsuleLabel.textColor = SageGraphitePalette.primaryText
         quotaCapsuleLabel.alignment = .right
 
-        let stack = NSStackView(views: [activityStatusCapsule, quotaCapsuleLabel])
+        subscriptionLabel.font = .systemFont(ofSize: 8, weight: .bold)
+        subscriptionLabel.textColor = SageGraphitePalette.controlTint
+        subscriptionLabel.alignment = .right
+
+        let quotaInfoView = NSView()
+        quotaInfoView.translatesAutoresizingMaskIntoConstraints = false
+        for child in [subscriptionLabel, quotaCapsuleLabel] {
+            child.translatesAutoresizingMaskIntoConstraints = false
+            quotaInfoView.addSubview(child)
+        }
+
+        let stack = NSStackView(views: [activityStatusCapsule, quotaInfoView])
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.distribution = .gravityAreas
@@ -816,7 +911,14 @@ final class CapsuleViewController: NSViewController, NSGestureRecognizerDelegate
         view.addGestureRecognizer(expandGestureRecognizer)
 
         NSLayoutConstraint.activate([
-            quotaCapsuleLabel.widthAnchor.constraint(equalToConstant: 52),
+            quotaInfoView.widthAnchor.constraint(equalToConstant: 52),
+            quotaInfoView.heightAnchor.constraint(equalToConstant: 24),
+            subscriptionLabel.topAnchor.constraint(equalTo: quotaInfoView.topAnchor),
+            subscriptionLabel.leadingAnchor.constraint(equalTo: quotaInfoView.leadingAnchor),
+            subscriptionLabel.trailingAnchor.constraint(equalTo: quotaInfoView.trailingAnchor, constant: -6),
+            quotaCapsuleLabel.bottomAnchor.constraint(equalTo: quotaInfoView.bottomAnchor),
+            quotaCapsuleLabel.leadingAnchor.constraint(equalTo: quotaInfoView.leadingAnchor),
+            quotaCapsuleLabel.trailingAnchor.constraint(equalTo: quotaInfoView.trailingAnchor, constant: -6),
             stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
@@ -837,6 +939,12 @@ final class CapsuleViewController: NSViewController, NSGestureRecognizerDelegate
         updateTooltip()
     }
 
+    func updatePlanType(_ planType: String?) {
+        currentPlanType = planType
+        subscriptionLabel.stringValue = subscriptionBadgeText(planType) ?? ""
+        updateTooltip()
+    }
+
     private func formatPercent(_ window: QuotaWindow?) -> String {
         guard let window, window.status == "ok", let remaining = window.remainingPercent else {
             return "--%"
@@ -854,7 +962,8 @@ final class CapsuleViewController: NSViewController, NSGestureRecognizerDelegate
     }
 
     private func updateTooltip() {
-        let tooltip = "\(currentActivityStatus.label) · 主 \(formatPercent(primaryWindow))，周 \(formatPercent(secondaryWindow))"
+        let subscription = subscriptionDisplayName(currentPlanType).map { " · 订阅 \($0)" } ?? ""
+        let tooltip = "\(currentActivityStatus.label)\(subscription) · 主 \(formatPercent(primaryWindow))，周 \(formatPercent(secondaryWindow))"
         view.toolTip = tooltip
         view.setAccessibilityLabel("Codex 额度胶囊窗口，\(tooltip)")
     }
@@ -878,6 +987,7 @@ final class CapsuleViewController: NSViewController, NSGestureRecognizerDelegate
 
 final class QuotaViewController: NSViewController {
     private let titleLabel = NSTextField(labelWithString: "Codex")
+    private let subscriptionBadge = SubscriptionBadgeView()
     private let primaryMeter = CompactMeterRow(name: "主额度", accessibilityLabel: "主额度")
     private let secondaryMeter = CompactMeterRow(name: "周额度", accessibilityLabel: "周额度")
     private let primaryGauge = CircularGaugeView(caption: "主额度", accessibilityLabel: "主额度圆形仪表盘")
@@ -902,6 +1012,7 @@ final class QuotaViewController: NSViewController {
     var onStatusTextChanged: ((String) -> Void)?
     var onActivityStatusChanged: ((ActivityStatus) -> Void)?
     var onActivityIntegrationChanged: ((Bool) -> Void)?
+    var onPlanTypeChanged: ((String?) -> Void)?
 
     override func loadView() {
         view = NSView(frame: NSRect(origin: .zero, size: expandedWindowSize))
@@ -938,9 +1049,15 @@ final class QuotaViewController: NSViewController {
             ActivityTaskMenuPresenter.shared.present(from: self.activityCapsule)
         }
 
+        let brandGroup = NSStackView(views: [titleLabel, subscriptionBadge])
+        brandGroup.orientation = .horizontal
+        brandGroup.alignment = .centerY
+        brandGroup.spacing = 5
+        brandGroup.translatesAutoresizingMaskIntoConstraints = false
+
         let header = NSView()
         header.translatesAutoresizingMaskIntoConstraints = false
-        for child in [activityCapsule, titleLabel, shrinkButton, gaugeButton, colorButton, refreshButton] {
+        for child in [activityCapsule, brandGroup, shrinkButton, gaugeButton, colorButton, refreshButton] {
             child.translatesAutoresizingMaskIntoConstraints = false
             header.addSubview(child)
         }
@@ -981,8 +1098,8 @@ final class QuotaViewController: NSViewController {
             contentStage.heightAnchor.constraint(equalToConstant: 116),
             activityCapsule.leadingAnchor.constraint(equalTo: header.leadingAnchor),
             activityCapsule.centerYAnchor.constraint(equalTo: header.centerYAnchor),
-            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            brandGroup.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            brandGroup.centerYAnchor.constraint(equalTo: header.centerYAnchor),
 
             shrinkButton.trailingAnchor.constraint(equalTo: gaugeButton.leadingAnchor, constant: -2),
             shrinkButton.centerYAnchor.constraint(equalTo: header.centerYAnchor),
@@ -1087,8 +1204,10 @@ final class QuotaViewController: NSViewController {
         secondaryMeter.update(with: windows["secondary"])
         primaryGauge.update(with: windows["primary"])
         secondaryGauge.update(with: windows["secondary"])
+        subscriptionBadge.update(planType: snapshot.planType)
         onQuotaWindowsChanged?(windows["primary"], windows["secondary"])
         onStatusTextChanged?(statusText(primary: windows["primary"], secondary: windows["secondary"]))
+        onPlanTypeChanged?(snapshot.planType)
         titleLabel.stringValue = "Codex"
     }
 
@@ -1181,6 +1300,7 @@ final class QuotaViewController: NSViewController {
         secondaryMeter.applyVisualStyle(visualStyle)
         primaryGauge.applyVisualStyle(visualStyle)
         secondaryGauge.applyVisualStyle(visualStyle)
+        subscriptionBadge.applyVisualStyle(visualStyle)
 
         switch visualStyle {
         case .sageGraphite:
@@ -1249,7 +1369,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var autoRefreshMenuItem: NSMenuItem?
     private var activityMenuItem: NSMenuItem?
     private var activityIntegrationMenuItem: NSMenuItem?
+    private var subscriptionMenuItem: NSMenuItem?
     private var currentActivityStatus: ActivityStatus = .idle
+    private var currentPlanName: String?
     private var quotaStatusText = "--/--"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -1278,6 +1400,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         controller.onActivityIntegrationChanged = { [weak self] installed in
             self?.updateActivityIntegration(installed)
+        }
+        controller.onPlanTypeChanged = { [weak self] planType in
+            self?.updatePlanType(planType)
         }
         capsuleController.onOpenRequested = { [weak self] in
             self?.showExpanded(nil)
@@ -1346,6 +1471,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let integrationItem = NSMenuItem(title: "状态监听：检查中", action: nil, keyEquivalent: "")
         menu.addItem(integrationItem)
         activityIntegrationMenuItem = integrationItem
+
+        let subscriptionItem = NSMenuItem(title: "订阅：读取中", action: nil, keyEquivalent: "")
+        menu.addItem(subscriptionItem)
+        subscriptionMenuItem = subscriptionItem
 
         menu.addItem(menuItem("手动刷新", action: #selector(refreshFromMenu(_:))))
 
@@ -1436,6 +1565,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             : "在项目目录运行 npm run install:hooks，然后重启 Codex"
     }
 
+    private func updatePlanType(_ planType: String?) {
+        currentPlanName = subscriptionDisplayName(planType)
+        capsuleController?.updatePlanType(planType)
+        subscriptionMenuItem?.title = "订阅：\(currentPlanName ?? "未知")"
+        renderStatusItemTitle()
+    }
+
     private func renderStatusItemTitle() {
         let title = NSMutableAttributedString(attributedString: NSAttributedString(string: "● ",
             attributes: [
@@ -1452,7 +1588,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         ))
         guard let statusItem else { return }
         statusItem.button?.attributedTitle = title
-        statusItem.button?.toolTip = "\(currentActivityStatus.label) · \(quotaStatusText)"
+        let subscription = currentPlanName.map { " · 订阅 \($0)" } ?? ""
+        statusItem.button?.toolTip = "\(currentActivityStatus.label)\(subscription) · \(quotaStatusText)"
     }
 
     private func placePanel(_ panel: NSPanel) {

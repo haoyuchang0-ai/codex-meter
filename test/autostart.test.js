@@ -81,10 +81,15 @@ test("autostart installer writes a persistent user LaunchAgent", () => {
     "com.haoyuchang.codex-meter.plist",
   );
   const plist = fs.readFileSync(plistPath, "utf8");
+  const manager = fs.readFileSync(managerPath, "utf8");
   assert.match(plist, /codex-lifecycle-watcher\.sh/);
   assert.match(plist, /Application Support\/CodexMeter\/runtime/);
   assert.match(plist, /<key>RunAtLoad<\/key>[\s\S]*<true\/>/);
   assert.match(plist, /<key>KeepAlive<\/key>[\s\S]*<true\/>/);
+  assert.match(
+    manager,
+    /CODEX_METER_DRY_RUN=0\s+\/bin\/zsh\s+"\$WATCHER"\s+--stop/,
+  );
   assert.equal(
     fs.existsSync(
       path.join(

@@ -8,6 +8,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 
 - 原生 macOS 悬浮窗，常驻桌面，可拖动。
 - 显示主额度和周额度的剩余百分比。
+- 显示当前 Codex 订阅档位，例如 Pro 或 Plus。
 - 额度进度根据剩余比例显示低饱和鼠尾草绿、赭金或柔和砖红预警。
 - 显示每个额度窗口的重置时间。
 - 默认每 60 秒自动刷新，也支持手动刷新。
@@ -31,6 +32,7 @@ A lightweight macOS floating window for Codex quota, showing primary quota, week
 - Use the macOS menu bar icon to show the window, collapse to capsule, hide to the menu bar, refresh manually, switch styles, or quit.
 - A dynamic status capsule shows aggregate activity across local Codex tasks in the full window and Capsule mode: Waiting, Working, Done, and Idle.
 - Click the activity capsule to list active top-level tasks, then select one to open it in Codex.
+- Shows the current Codex subscription tier, such as Pro or Plus, across the full window, Capsule mode, and menu bar menu.
 - Quota progress changes from muted sage to ochre and soft brick red as remaining capacity decreases.
 - Closing the window hides it to the menu bar instead of quitting, so the app remains easy to recover.
 

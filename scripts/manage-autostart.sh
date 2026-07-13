@@ -31,6 +31,9 @@ prepare_runtime() {
 install_agent() {
   /bin/mkdir -p "${PLIST:h}" "$LOG_DIR"
   "$LAUNCHCTL" bootout "$DOMAIN/$LABEL" >/dev/null 2>&1 || true
+  if [[ -x "$WATCHER" ]]; then
+    CODEX_METER_DRY_RUN=0 /bin/zsh "$WATCHER" --stop
+  fi
   : > "$LOG_DIR/watcher.log"
   : > "$LOG_DIR/watcher-error.log"
   prepare_runtime

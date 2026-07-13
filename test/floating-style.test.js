@@ -20,13 +20,31 @@ function swiftClassSource(source, className, nextClassName) {
   return match[0];
 }
 
-test("native floating window centers the Codex title", () => {
+test("native floating window centers the Codex subscription lockup", () => {
   const source = readMainSwift();
 
   assert.match(
     source,
-    /titleLabel\.centerXAnchor\.constraint\(equalTo:\s*view\.centerXAnchor\)/,
+    /brandGroup\.centerXAnchor\.constraint\(equalTo:\s*view\.centerXAnchor\)/,
   );
+  assert.match(source, /NSStackView\(views:\s*\[titleLabel,\s*subscriptionBadge\]\)/);
+});
+
+test("native floating window shows the current subscription in every window state", () => {
+  const source = readMainSwift();
+
+  assert.match(source, /final\s+class\s+SubscriptionBadgeView/);
+  assert.match(source, /widthAnchor\.constraint\(equalToConstant:\s*34\)/);
+  assert.match(source, /heightAnchor\.constraint\(equalToConstant:\s*17\)/);
+  assert.match(source, /subscriptionBadge\.update\(planType:\s*snapshot\.planType\)/);
+  assert.match(source, /onPlanTypeChanged\?\(snapshot\.planType\)/);
+  assert.match(source, /private\s+let\s+subscriptionLabel\s*=\s*NSTextField/);
+  assert.match(source, /quotaInfoView\.widthAnchor\.constraint\(equalToConstant:\s*52\)/);
+  assert.match(source, /subscriptionLabel\.trailingAnchor\.constraint\(equalTo:\s*quotaInfoView\.trailingAnchor,\s*constant:\s*-6\)/);
+  assert.match(source, /quotaCapsuleLabel\.trailingAnchor\.constraint\(equalTo:\s*quotaInfoView\.trailingAnchor,\s*constant:\s*-6\)/);
+  assert.match(source, /func\s+updatePlanType\(_\s+planType:\s*String\?\)/);
+  assert.match(source, /订阅：读取中/);
+  assert.match(source, /subscriptionMenuItem\?\.title\s*=\s*"订阅：/);
 });
 
 test("native floating window can switch to minimalist dashboard style", () => {
@@ -214,7 +232,7 @@ test("native floating window keeps secondary controls visually quiet", () => {
   assert.match(source, /gaugeStack\.spacing\s*=\s*12/);
   assert.match(source, /button\.alphaValue\s*=\s*0\.72/);
   assert.match(source, /private\s+let\s+activityCapsule\s*=\s*ActivityCapsuleView\(\)/);
-  assert.match(source, /for\s+child\s+in\s+\[activityCapsule,\s*titleLabel,\s*shrinkButton,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
+  assert.match(source, /for\s+child\s+in\s+\[activityCapsule,\s*brandGroup,\s*shrinkButton,\s*gaugeButton,\s*colorButton,\s*refreshButton\]/);
   assert.match(source, /activityCapsule\.leadingAnchor\.constraint\(equalTo:\s*header\.leadingAnchor\)/);
   assert.doesNotMatch(source, /for\s+child\s+in\s+\[autoButton/);
 });
@@ -276,8 +294,8 @@ test("small window reuses the dynamic activity capsule", () => {
   const source = readMainSwift();
 
   assert.match(source, /private\s+let\s+activityStatusCapsule\s*=\s*ActivityCapsuleView/);
-  assert.match(source, /quotaCapsuleLabel\.widthAnchor\.constraint\(equalToConstant:\s*52\)/);
-  assert.match(source, /let\s+stack\s*=\s*NSStackView\(views:\s*\[activityStatusCapsule,\s*quotaCapsuleLabel\]\)/);
+  assert.match(source, /quotaInfoView\.widthAnchor\.constraint\(equalToConstant:\s*52\)/);
+  assert.match(source, /let\s+stack\s*=\s*NSStackView\(views:\s*\[activityStatusCapsule,\s*quotaInfoView\]\)/);
   assert.match(source, /stack\.spacing\s*=\s*4/);
   assert.doesNotMatch(source, /dotCapsuleLabel/);
   assert.match(source, /NSGestureRecognizerDelegate/);
