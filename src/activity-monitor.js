@@ -5,6 +5,7 @@ const path = require("node:path");
 const { aggregateActivity, parseRolloutText, resolveThreadStates } = require("./activity-state");
 
 const RECENT_FILE_MS = 48 * 60 * 60 * 1_000;
+const MAX_SCAN_DEPTH = 5;
 const THREAD_ID_PATTERN = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
 
 function safeJson(filePath, fsImpl) {
@@ -15,34 +16,32 @@ function safeJson(filePath, fsImpl) {
   }
 }
 
-function localDateDirectories(root, nowMs) {
-  const directories = [];
-  for (let daysAgo = 0; daysAgo < 3; daysAgo += 1) {
-    const date = new Date(nowMs);
-    date.setDate(date.getDate() - daysAgo);
-    directories.push(path.join(
-      root,
-      String(date.getFullYear()).padStart(4, "0"),
-      String(date.getMonth() + 1).padStart(2, "0"),
-      String(date.getDate()).padStart(2, "0"),
-    ));
-  }
-  return directories;
-}
-
-function listJsonl(directory, fsImpl) {
-  if (!fsImpl.existsSync(directory)) return [];
+function listRecentJsonl(root, nowMs, fsImpl, depth = 0) {
+  if (!fsImpl.existsSync(root)) return [];
 
   let entries;
   try {
-    entries = fsImpl.readdirSync(directory, { withFileTypes: true });
+    entries = fsImpl.readdirSync(root, { withFileTypes: true });
   } catch {
     return [];
   }
 
-  return entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".jsonl"))
-    .map((entry) => path.join(directory, entry.name));
+  const files = [];
+  for (const entry of entries) {
+    const entryPath = path.join(root, entry.name);
+    if (entry.isFile() && entry.name.endsWith(".jsonl")) {
+      let stat;
+      try {
+        stat = fsImpl.statSync(entryPath);
+      } catch {
+        continue;
+      }
+      if (nowMs - stat.mtimeMs <= RECENT_FILE_MS) files.push(entryPath);
+    } else if (entry.isDirectory() && depth < MAX_SCAN_DEPTH) {
+      files.push(...listRecentJsonl(entryPath, nowMs, fsImpl, depth + 1));
+    }
+  }
+  return files;
 }
 
 function readRange(filePath, offset, length, fsImpl) {
@@ -106,8 +105,7 @@ class ActivityMonitor {
     const events = [];
     const discovered = new Set();
     const nowMs = this.now();
-    const files = localDateDirectories(this.sessionsRoot, nowMs)
-      .flatMap((directory) => listJsonl(directory, this.fs));
+    const files = listRecentJsonl(this.sessionsRoot, nowMs, this.fs);
     for (const filePath of files) {
       let stat;
       try {

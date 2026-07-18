@@ -212,34 +212,27 @@ test("rebuilds cached events after a same-size in-place rollout rewrite", () => 
   assert.equal(monitor.snapshot().status, "done");
 });
 
-test("enumerates only the three local date directories in the 48-hour window", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-meter-dates-"));
+test("detects recently updated rollout files in older date directories", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-meter-old-thread-"));
   const sessionsRoot = path.join(root, "sessions");
-  const expectedDirectories = [0, 1, 2].map((daysAgo) => dateDirectory(
-    sessionsRoot,
-    NOW_MS,
-    daysAgo,
-  ));
-  for (const directory of expectedDirectories) fs.mkdirSync(directory, { recursive: true });
-  fs.mkdirSync(path.join(sessionsRoot, "2020", "01", "01"), { recursive: true });
-
-  const enumerated = [];
-  const fsImpl = Object.create(fs);
-  fsImpl.readdirSync = (directory, options) => {
-    enumerated.push(directory);
-    return fs.readdirSync(directory, options);
-  };
+  const oldDateDir = path.join(sessionsRoot, "2026", "07", "09");
+  fs.mkdirSync(oldDateDir, { recursive: true });
+  const rolloutPath = path.join(oldDateDir, `rollout-2026-07-09T15-12-57-${THREAD_ID}.jsonl`);
+  fs.writeFileSync(
+    rolloutPath,
+    `${rolloutLine("task_started", "2026-07-10T02:23:06.016Z")}\n`,
+  );
+  const recentTime = new Date(NOW_MS - 1_000);
+  fs.utimesSync(rolloutPath, recentTime, recentTime);
 
   const monitor = new ActivityMonitor({
     sessionsRoot,
     hookStateRoot: path.join(root, "activity"),
     hooksConfigPath: path.join(root, "hooks.json"),
     now: () => NOW_MS,
-    fsImpl,
   });
-  monitor.snapshot();
 
-  assert.deepEqual(enumerated.sort(), expectedDirectories.sort());
+  assert.equal(monitor.snapshot().status, "working");
 });
 
 test("compacts cached rollout events to the latest event per thread and turn", () => {

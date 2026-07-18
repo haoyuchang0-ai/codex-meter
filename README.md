@@ -97,9 +97,9 @@ npm run uninstall:autostart
 
 Runtime files are installed under `~/Library/Application Support/CodexMeter/runtime/`, and watcher logs are stored in `~/Library/Logs/CodexMeter/`.
 
-活动状态每秒从本机读取一次，额度仍每 60 秒刷新一次。状态优先级为 `waiting > working > done > idle`；完成状态保留 8 秒。
+活动状态每秒从本机读取一次，额度仍每 60 秒刷新一次。任务状态按最近修改的本地 Codex session 文件和 Hook 状态推断，因此长时间继续使用的旧任务也会被识别。状态优先级为 `waiting > working > done > idle`；完成状态保留 8 秒。
 
-Activity is read locally once per second, while quota still refreshes once per minute. Priority is `waiting > working > done > idle`, and Done remains visible for 8 seconds.
+Activity is read locally once per second, while quota still refreshes once per minute. Task status is inferred from recently modified local Codex session files and Hook state, so long-running older tasks are still detected. Priority is `waiting > working > done > idle`, and Done remains visible for 8 seconds.
 
 You can also start only the local service:
 
